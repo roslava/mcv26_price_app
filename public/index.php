@@ -111,11 +111,11 @@ foreach ($sections as $section) {
         </div>
     </section>
 
-    <div class="container price-content">
+    <div id="price-tools" class="container price-content">
         <section class="search-panel" aria-labelledby="search-heading">
             <h2 id="search-heading" class="visually-hidden">Поиск по прайс-листу</h2>
             <label for="price-search">Найти услугу</label>
-            <input id="price-search" type="search" placeholder="Название, код или раздел" autocomplete="off">
+            <input id="price-search" type="search" placeholder="Название услуги или код" autocomplete="off">
             <p id="search-status" class="search-status" aria-live="polite">Показано услуг: <?= public_e($serviceCount) ?></p>
             <p id="no-results" class="no-results" hidden>Ничего не найдено</p>
         </section>
@@ -158,6 +158,8 @@ foreach ($sections as $section) {
         </div>
     </div>
 </main>
+
+<a class="back-to-tools" href="#price-tools">↑ К поиску</a>
 
 <footer class="public-footer">
     <div class="container">

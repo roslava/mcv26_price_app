@@ -1,8 +1,11 @@
 (() => {
+    document.documentElement.classList.add('js');
+
     const input = document.querySelector('#price-search');
     const sections = Array.from(document.querySelectorAll('[data-price-section]'));
     const status = document.querySelector('#search-status');
     const noResults = document.querySelector('#no-results');
+    const backToTools = document.querySelector('.back-to-tools');
 
     if (!(input instanceof HTMLInputElement) || !status || !noResults || sections.length === 0) {
         return;
@@ -59,4 +62,29 @@
     };
 
     input.addEventListener('input', update);
+
+    if (backToTools instanceof HTMLAnchorElement) {
+        const sectionNavigation = document.querySelector('.section-nav');
+        let ticking = false;
+
+        backToTools.hidden = true;
+
+        const updateBackToTools = () => {
+            const threshold = sectionNavigation instanceof HTMLElement
+                ? sectionNavigation.getBoundingClientRect().bottom + window.scrollY + 80
+                : 600;
+            backToTools.hidden = window.scrollY <= threshold;
+            ticking = false;
+        };
+
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(updateBackToTools);
+                ticking = true;
+            }
+        }, { passive: true });
+
+        window.addEventListener('resize', updateBackToTools);
+        updateBackToTools();
+    }
 })();
