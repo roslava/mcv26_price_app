@@ -1,6 +1,7 @@
 /vendor/
-/uploads/
-/data/*.json
-/data/archive/
+/storage/uploads/
+/storage/archive/
+/storage/data/
+/storage/import.lock
 .env
 .DS_Store
