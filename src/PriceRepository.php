@@ -30,7 +30,8 @@ final class PriceRepository
     public function importAndPublish(
         string $sourceXlsx,
         UploadValidator $validator,
-        PriceImporter $importer
+        PriceImporter $importer,
+        ?string $sourceFilename = null
     ): array {
         $this->ensureDirectories();
 
@@ -47,7 +48,7 @@ final class PriceRepository
             }
             $locked = true;
 
-            $validator->validateSource($sourceXlsx);
+            $validator->validateSource($sourceXlsx, $sourceFilename);
             $stagedXlsx = $this->createTemporaryFile($this->uploadsDirectory, '.xlsx');
             $this->copySourceToManagedFile($sourceXlsx, $stagedXlsx);
 

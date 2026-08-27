@@ -10,7 +10,7 @@ use Throwable;
 
 final class UploadValidator
 {
-    private const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
+    public const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 
     public function __construct(private readonly int $maxBytes = self::DEFAULT_MAX_BYTES)
     {
@@ -19,13 +19,14 @@ final class UploadValidator
         }
     }
 
-    public function validateSource(string $path): void
+    public function validateSource(string $path, ?string $sourceFilename = null): void
     {
         if (!is_file($path) || !is_readable($path)) {
             throw new ImportException('XLSX-файл не найден или недоступен для чтения.');
         }
 
-        if (strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) !== 'xlsx') {
+        $filenameForExtension = $sourceFilename ?? $path;
+        if (strtolower((string) pathinfo($filenameForExtension, PATHINFO_EXTENSION)) !== 'xlsx') {
             throw new ImportException('Допускаются только файлы с расширением .xlsx.');
         }
 
