@@ -12,7 +12,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
 
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__) . '/vendor/autoload.php';
 
 try {
     $adminSession = AdminSession::start();
@@ -24,7 +24,7 @@ try {
     exit;
 }
 
-$projectRoot = dirname(__DIR__, 2);
+$projectRoot = dirname(__DIR__);
 $storageDirectory = $projectRoot . '/storage';
 
 function admin_e(mixed $value): string
