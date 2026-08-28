@@ -8,6 +8,9 @@ use Mcv26\Price\PriceImporter;
 use Mcv26\Price\PriceRepository;
 use Mcv26\Price\PriceStatusReader;
 use Mcv26\Price\UploadValidator;
+use Mcv26\Price\Database\DatabaseConfig;
+use Mcv26\Price\Database\DatabasePriceRepository;
+use Mcv26\Price\Database\PdoConnectionFactory;
 
 require dirname(__DIR__, 2) . '/src/admin_bootstrap.php';
 
@@ -90,6 +93,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $flash = $adminSession->pullFlash();
+$versions = [];
+$publishedVersionId = null;
+$versionsError = null;
+try {
+    $databaseRepository = new DatabasePriceRepository(
+        PdoConnectionFactory::create(DatabaseConfig::fromEnvironment())
+    );
+    $versions = $databaseRepository->listVersions();
+    $publishedVersionId = $databaseRepository->publishedVersionId();
+} catch (Throwable $exception) {
+    error_log('Price version list failed: ' . $exception->getMessage());
+    $versionsError = 'Не удалось загрузить список версий.';
+}
 $statusError = null;
 try {
     $priceStatus = (new PriceStatusReader($storageDirectory . '/data/price.json'))->read();
@@ -155,6 +171,45 @@ admin_page_start('Обновление прайс-листа');
     <?php endif; ?>
 </section>
 
+<section class="card" data-version-actions
+         data-csrf-token="<?= admin_e($adminSession->csrfToken()) ?>"
+         data-published-version-id="<?= admin_e($publishedVersionId ?? '') ?>">
+    <h2>Версии в базе данных</h2>
+    <p class="version-message" data-version-message role="status" aria-live="polite"></p>
+    <?php if ($versionsError !== null): ?>
+        <div class="notice error" role="alert"><?= admin_e($versionsError) ?></div>
+    <?php elseif ($versions === []): ?>
+        <p>Версий пока нет.</p>
+    <?php else: ?>
+        <div class="version-list">
+            <?php foreach ($versions as $version): ?>
+                <article class="version-row">
+                    <div>
+                        <strong>№<?= admin_e($version['id']) ?> · <?= admin_e($version['title']) ?></strong>
+                        <span class="muted"><?= admin_e($version['status']) ?> · ревизия <?= admin_e($version['revision']) ?></span>
+                        <?php if ($version['restored_from_version_id'] !== null): ?>
+                            <span class="muted">восстановлена из №<?= admin_e($version['restored_from_version_id']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="version-actions">
+                        <?php if ($version['status'] === 'draft'): ?>
+                            <a class="button-link button-secondary" href="/admin/draft.php?id=<?= admin_e($version['id']) ?>">Редактировать</a>
+                            <button type="button" data-version-action="publish"
+                                    data-version-id="<?= admin_e($version['id']) ?>"
+                                    data-revision="<?= admin_e($version['revision']) ?>">Опубликовать</button>
+                        <?php elseif ($version['status'] === 'archived'): ?>
+                            <button type="button" class="button-secondary" data-version-action="restore"
+                                    data-version-id="<?= admin_e($version['id']) ?>">Восстановить в черновик</button>
+                        <?php else: ?>
+                            <span class="status-published">Опубликована</span>
+                        <?php endif; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
+
 <section class="card">
     <h2>Загрузить новый файл</h2>
     <form method="post" action="/admin/" enctype="multipart/form-data" class="form-stack">
@@ -169,4 +224,5 @@ admin_page_start('Обновление прайс-листа');
     </form>
 </section>
 <?php
+echo '<script src="/assets/admin-versions.js" defer></script>';
 admin_page_end();

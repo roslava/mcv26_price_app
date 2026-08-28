@@ -62,4 +62,16 @@ final class MigrationSqlTest extends TestCase
         self::assertStringContainsString('fk_price_changes_version', $sql);
         self::assertStringContainsString('information_schema.columns', $sql);
     }
+
+    public function testAddsRestoredVersionRelationIdempotently(): void
+    {
+        $sql = (string) file_get_contents(
+            dirname(__DIR__, 2) . '/migrations/005_add_restored_version_relation.sql'
+        );
+        self::assertStringContainsString('restored_from_version_id BIGINT UNSIGNED NULL', $sql);
+        self::assertStringContainsString('idx_price_versions_restored_from', $sql);
+        self::assertStringContainsString('fk_price_versions_restored_from', $sql);
+        self::assertStringContainsString('ON DELETE SET NULL', $sql);
+        self::assertStringContainsString('information_schema.referential_constraints', $sql);
+    }
 }

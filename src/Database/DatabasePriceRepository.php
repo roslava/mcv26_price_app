@@ -94,6 +94,27 @@ final class DatabasePriceRepository
         return $version;
     }
 
+    /** @return list<array<string, mixed>> */
+    public function listVersions(): array
+    {
+        return $this->pdo->query(
+            'SELECT id, status, revision, restored_from_version_id, title, price_date, original_filename, '
+            . 'imported_at, published_at, created_at FROM price_versions '
+            . "ORDER BY FIELD(status, 'published', 'draft', 'archived'), id DESC"
+        )->fetchAll();
+    }
+
+    public function publishedVersionId(): ?int
+    {
+        $ids = $this->pdo->query(
+            "SELECT id FROM price_versions WHERE status = 'published' ORDER BY id"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        if (count($ids) > 1) {
+            throw new RuntimeException('More than one published price version exists.');
+        }
+        return $ids === [] ? null : (int) $ids[0];
+    }
+
     public function publishVersion(int $versionId): void
     {
         if ($this->pdo->inTransaction()) {
@@ -109,9 +130,10 @@ final class DatabasePriceRepository
         $statement = $this->pdo->prepare(
             'INSERT INTO price_versions '
             . '(status, title, price_date, original_filename, stored_xlsx_name, source_xlsx_sha256, '
-            . 'source_json_sha256, source_identity, imported_at, created_at) '
+            . 'source_json_sha256, source_identity, imported_at, restored_from_version_id, created_at) '
             . "VALUES ('draft', :title, :price_date, :original_filename, :stored_xlsx_name, "
-            . ':source_xlsx_sha256, :source_json_sha256, :source_identity, :imported_at, UTC_TIMESTAMP(6))'
+            . ':source_xlsx_sha256, :source_json_sha256, :source_identity, :imported_at, '
+            . ':restored_from_version_id, UTC_TIMESTAMP(6))'
         );
         $statement->execute([
             'title' => $version['title'] ?? null,
@@ -122,6 +144,7 @@ final class DatabasePriceRepository
             'source_json_sha256' => $version['source_json_sha256'] ?? null,
             'source_identity' => $version['source_identity'] ?? null,
             'imported_at' => $version['imported_at'] ?? null,
+            'restored_from_version_id' => $version['restored_from_version_id'] ?? null,
         ]);
         return (int) $this->pdo->lastInsertId();
     }
