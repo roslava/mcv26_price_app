@@ -7,6 +7,7 @@ namespace Mcv26\Price;
 use Mcv26\Price\Exception\ImportException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Throwable;
+use ZipArchive;
 
 final class UploadValidator
 {
@@ -44,12 +45,26 @@ final class UploadValidator
 
         $this->validateSize($path);
 
-        // MIME varies between shared hosts and is advisory; PhpSpreadsheet is decisive.
         if (class_exists(\finfo::class)) {
             $finfo = new \finfo(FILEINFO_MIME_TYPE);
             /** @var string|false $detectedMime */
             $detectedMime = @$finfo->file($path);
+            $allowedMimes = [
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/zip',
+                'application/x-zip',
+                'application/x-zip-compressed',
+                'application/x-compressed',
+                'application/octet-stream',
+                'application/vnd.ms-excel',
+                'application/vnd.ms-office',
+            ];
+            if (is_string($detectedMime) && !in_array(strtolower($detectedMime), $allowedMimes, true)) {
+                throw new ImportException(sprintf('Недопустимый MIME-тип XLSX-файла: %s.', $detectedMime));
+            }
         }
+
+        $this->validateZipContainer($path);
 
         try {
             if (IOFactory::identify($path) !== 'Xlsx') {
@@ -59,6 +74,39 @@ final class UploadValidator
             throw $exception;
         } catch (Throwable $exception) {
             throw new ImportException('PhpSpreadsheet не смог распознать XLSX-файл.', 0, $exception);
+        }
+    }
+
+    private function validateZipContainer(string $path): void
+    {
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            throw new ImportException('Не удалось прочитать сигнатуру XLSX-файла.');
+        }
+        try {
+            $signature = fread($handle, 4);
+        } finally {
+            fclose($handle);
+        }
+        if ($signature !== "PK\x03\x04") {
+            throw new ImportException('XLSX-файл не является ZIP-контейнером.');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($path, ZipArchive::RDONLY) !== true) {
+            throw new ImportException('ZIP-контейнер XLSX повреждён.');
+        }
+        try {
+            foreach (['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml'] as $requiredEntry) {
+                if ($zip->locateName($requiredEntry, ZipArchive::FL_NOCASE) === false) {
+                    throw new ImportException(sprintf(
+                        'ZIP-контейнер не содержит обязательный компонент XLSX: %s.',
+                        $requiredEntry
+                    ));
+                }
+            }
+        } finally {
+            $zip->close();
         }
     }
 

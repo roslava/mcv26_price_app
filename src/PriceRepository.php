@@ -197,8 +197,8 @@ final class PriceRepository
                     || trim($item['code']) === ''
                     || !is_string($item['name'] ?? null)
                     || trim($item['name']) === ''
-                    || !is_numeric($item['price'] ?? null)
-                    || $item['price'] <= 0
+                    || !is_int($item['price_minor'] ?? null)
+                    || $item['price_minor'] <= 0
                 ) {
                     throw new ImportException('Услуга в сформированных данных имеет неверную структуру.');
                 }

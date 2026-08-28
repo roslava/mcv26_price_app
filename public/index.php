@@ -20,12 +20,16 @@ function public_e(mixed $value): string
 
 function public_price(mixed $value): string
 {
-    $price = (float) $value;
-    if (floor($price) === $price) {
-        return number_format($price, 0, ',', "\u{00A0}") . "\u{00A0}₽";
+    $price = trim((string) $value);
+    if (!preg_match('/^(\d+)(?:\.(\d{1,2}))?$/D', $price, $matches)) {
+        return '';
     }
 
-    $formatted = rtrim(rtrim(number_format($price, 2, ',', "\u{00A0}"), '0'), ',');
+    $formatted = number_format((int) $matches[1], 0, ',', "\u{00A0}");
+    $fraction = rtrim($matches[2] ?? '', '0');
+    if ($fraction !== '') {
+        $formatted .= ',' . $fraction;
+    }
     return $formatted . "\u{00A0}₽";
 }
 

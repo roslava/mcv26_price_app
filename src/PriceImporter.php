@@ -141,9 +141,7 @@ final class PriceImporter
             if (!is_scalar($values['C']) || trim((string) $values['C']) === '') {
                 throw StructureException::atRow($row, 'название услуги должно быть непустым текстом.');
             }
-            if (!is_numeric($values['D']) || (float) $values['D'] <= 0) {
-                throw StructureException::atRow($row, 'цена должна быть положительным числом.');
-            }
+            $priceMinor = $this->priceToMinorUnits($values['D'], $row);
 
             $number = (int) $values['A'];
             if (isset($seenNumbers[$number])) {
@@ -156,12 +154,11 @@ final class PriceImporter
                 $seenNumbers[$number] = $row;
             }
 
-            $price = (float) $values['D'];
             $sections[$currentSection]['items'][] = [
                 'number' => $number,
                 'code' => (string) $values['B'],
                 'name' => (string) $values['C'],
-                'price' => floor($price) === $price ? (int) $price : $price,
+                'price_minor' => $priceMinor,
             ];
             $itemCount++;
         }
@@ -186,6 +183,34 @@ final class PriceImporter
             ],
             'warnings' => $warnings,
         ];
+    }
+
+    private function priceToMinorUnits(mixed $value, int $row): int
+    {
+        if (!is_int($value) && !is_float($value) && !is_string($value)) {
+            throw StructureException::atRow($row, 'цена должна быть положительным числом с точностью до копеек.');
+        }
+
+        $normalized = trim((string) $value);
+        if (!preg_match('/^(\d+)(?:\.(\d{1,2}))?$/D', $normalized, $matches)) {
+            throw StructureException::atRow($row, 'цена должна быть положительным числом с точностью до копеек.');
+        }
+
+        $whole = ltrim($matches[1], '0');
+        $whole = $whole === '' ? '0' : $whole;
+        $fraction = str_pad($matches[2] ?? '', 2, '0');
+        $minorText = $whole . $fraction;
+        if (strlen($minorText) > strlen((string) PHP_INT_MAX)
+            || (strlen($minorText) === strlen((string) PHP_INT_MAX) && strcmp($minorText, (string) PHP_INT_MAX) > 0)
+        ) {
+            throw StructureException::atRow($row, 'цена слишком велика.');
+        }
+
+        $minor = (int) $minorText;
+        if ($minor <= 0) {
+            throw StructureException::atRow($row, 'цена должна быть положительным числом с точностью до копеек.');
+        }
+        return $minor;
     }
 
     /** @param array<string, mixed> $values */
