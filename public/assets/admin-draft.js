@@ -7,6 +7,8 @@
     const MAX_MINOR = 9223372036854775807n;
     const rows = Array.from(editor.querySelectorAll('[data-price-row]'));
     const inputs = rows.map((row) => row.querySelector('.price-input'));
+    const saveButton = editor.querySelector('[data-save-prices]');
+    const saveMessage = editor.querySelector('[data-save-message]');
     const summary = {
         changed: editor.querySelector('[data-summary-changed]'),
         increased: editor.querySelector('[data-summary-increased]'),
@@ -17,6 +19,8 @@
         state: editor.querySelector('[data-draft-state]'),
     };
     let hasValidUnsavedChanges = false;
+    let invalidCount = 0;
+    let isSaving = false;
 
     function parseMinor(text) {
         const normalized = text.trim().replace(',', '.');
@@ -94,6 +98,7 @@
 
         // Invalid rows do not count as changes, but must not suppress a warning for other valid edits.
         hasValidUnsavedChanges = changed > 0;
+        invalidCount = invalid;
         summary.changed.textContent = String(changed);
         summary.increased.textContent = String(increased);
         summary.decreased.textContent = String(decreased);
@@ -106,6 +111,7 @@
         summary.state.classList.toggle('has-errors', invalid > 0);
         summary.state.classList.toggle('is-modified', changed > 0 && invalid === 0);
         editor.classList.toggle('is-modified', changed > 0);
+        saveButton.disabled = changed === 0 || invalid > 0 || isSaving;
     }
 
     inputs.forEach((input, index) => {
@@ -140,6 +146,60 @@
             inputs[index].value = decimal(BigInt(row.dataset.loadedMinor));
         });
         update();
+        saveMessage.textContent = '';
+    });
+
+    saveButton.addEventListener('click', async () => {
+        update();
+        if (!hasValidUnsavedChanges || invalidCount > 0 || isSaving) return;
+
+        const prices = rows.map((row, index) => ({
+            service_id: row.dataset.serviceId,
+            current_price_minor: String(parseMinor(inputs[index].value)),
+        }));
+        isSaving = true;
+        saveMessage.textContent = 'Сохранение…';
+        saveMessage.className = 'draft-save-message';
+        update();
+        try {
+            const response = await fetch('/admin/save-draft.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': editor.dataset.csrfToken,
+                },
+                body: JSON.stringify({
+                    version_id: editor.dataset.versionId,
+                    expected_revision: editor.dataset.revision,
+                    prices,
+                }),
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.ok) {
+                const conflict = response.status === 409 && result?.error === 'revision_conflict';
+                saveMessage.textContent = conflict
+                    ? 'Черновик изменён в другой вкладке. Перезагрузите страницу перед сохранением.'
+                    : result?.message || 'Не удалось сохранить изменения.';
+                saveMessage.classList.add('has-errors');
+                return;
+            }
+
+            rows.forEach((row, index) => {
+                const current = parseMinor(inputs[index].value);
+                row.dataset.loadedMinor = String(current);
+                inputs[index].value = decimal(current);
+            });
+            editor.dataset.revision = String(result.revision);
+            saveMessage.textContent = `Сохранено. Новая ревизия: ${result.revision}.`;
+            saveMessage.classList.add('is-success');
+        } catch (error) {
+            saveMessage.textContent = 'Сеть недоступна. Изменения не сохранены.';
+            saveMessage.classList.add('has-errors');
+        } finally {
+            isSaving = false;
+            update();
+        }
     });
 
     window.addEventListener('beforeunload', (event) => {

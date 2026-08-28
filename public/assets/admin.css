@@ -304,6 +304,24 @@ dd {
     font-weight: 700;
 }
 
+.draft-save-message {
+    grid-column: 1 / -1;
+    min-height: 1.4em;
+    margin: -6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.draft-save-message.is-success {
+    color: #087339;
+    font-weight: 700;
+}
+
+.draft-save-message.has-errors {
+    color: #a42626;
+    font-weight: 700;
+}
+
 .draft-table-wrap {
     overflow-x: auto;
     border: 1px solid var(--border);

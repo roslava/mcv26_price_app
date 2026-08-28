@@ -51,6 +51,7 @@ final class DraftEditorPageIntegrationTest extends TestCase
         self::assertSame('2025-04-01', $draft['price_date']);
         self::assertSame('upload.xlsx', $draft['original_filename']);
         self::assertSame('draft', $draft['status']);
+        self::assertSame(0, (int) $draft['revision']);
         self::assertSame(['First category', 'Second category'], array_column($draft['categories'], 'name'));
         self::assertSame(
             ['First service', 'Second service'],

@@ -83,6 +83,24 @@ final class DatabasePriceRepositoryIntegrationTest extends TestCase
         )->fetchColumn());
     }
 
+    public function testRevisionAuditMigrationRecoversWithoutBookkeeping(): void
+    {
+        $this->pdo->exec(
+            "DELETE FROM schema_migrations WHERE version = '004_add_draft_revision_and_audit_version'"
+        );
+        $runner = new MigrationRunner($this->pdo, dirname(__DIR__, 2) . '/migrations');
+        self::assertSame(['004_add_draft_revision_and_audit_version'], $runner->migrate());
+        self::assertSame([], $runner->migrate());
+        self::assertSame(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() "
+            . "AND table_name='price_versions' AND column_name='revision' AND column_default='0'"
+        )->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE() "
+            . "AND table_name='price_changes' AND constraint_name='fk_price_changes_version'"
+        )->fetchColumn());
+    }
+
     public function testTransactionRollsBack(): void
     {
         try {

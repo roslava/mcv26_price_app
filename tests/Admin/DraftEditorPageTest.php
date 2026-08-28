@@ -49,7 +49,8 @@ final class DraftEditorPageTest extends TestCase
                     ]],
                 ],
             ],
-        ]);
+            'revision' => 4,
+        ], 'csrf-token-value');
 
         self::assertStringNotContainsString('<script>title</script>', $html);
         self::assertStringContainsString('&lt;script&gt;title&lt;/script&gt;', $html);
@@ -61,8 +62,12 @@ final class DraftEditorPageTest extends TestCase
         self::assertLessThan(strpos($html, 'Service two'), strpos($html, '&lt;Service one&gt;'));
         self::assertStringContainsString('data-imported-minor="100000"', $html);
         self::assertStringContainsString('value="1100,50"', $html);
-        self::assertStringNotContainsString('991', $html);
-        self::assertStringNotContainsString('992', $html);
         self::assertSame(2, substr_count($html, 'class="price-input"'));
+        self::assertStringContainsString('data-revision="4"', $html);
+        self::assertStringContainsString('data-csrf-token="csrf-token-value"', $html);
+        self::assertStringContainsString('data-service-id="991"', $html);
+        self::assertStringContainsString('data-service-id="992"', $html);
+        self::assertStringNotContainsString('<th scope="col">ID</th>', $html);
+        self::assertStringContainsString('data-save-prices disabled', $html);
     }
 }

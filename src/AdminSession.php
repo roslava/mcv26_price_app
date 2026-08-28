@@ -11,6 +11,7 @@ final class AdminSession
     private const AUTH_KEY = 'mcv26_admin_authenticated';
     private const CSRF_KEY = 'mcv26_csrf_token';
     private const FLASH_KEY = 'mcv26_admin_flash';
+    private const IDENTITY_KEY = 'mcv26_admin_identity';
 
     public static function start(): self
     {
@@ -55,12 +56,19 @@ final class AdminSession
 
         session_regenerate_id(true);
         $_SESSION[self::AUTH_KEY] = true;
+        $_SESSION[self::IDENTITY_KEY] = $login;
         return true;
     }
 
     public function isAuthenticated(): bool
     {
         return ($_SESSION[self::AUTH_KEY] ?? false) === true;
+    }
+
+    public function identity(): ?string
+    {
+        $identity = $_SESSION[self::IDENTITY_KEY] ?? null;
+        return $this->isAuthenticated() && is_string($identity) && $identity !== '' ? $identity : null;
     }
 
     public function logout(): void

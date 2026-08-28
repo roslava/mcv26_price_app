@@ -49,4 +49,17 @@ final class MigrationSqlTest extends TestCase
         self::assertStringContainsString('UNIQUE INDEX uq_price_versions_source_identity', $sql);
         self::assertStringContainsString('DROP INDEX uq_price_versions_source_xlsx_sha256', $sql);
     }
+
+    public function testAddsDraftRevisionAndVersionedAuditHistory(): void
+    {
+        $sql = (string) file_get_contents(
+            dirname(__DIR__, 2) . '/migrations/004_add_draft_revision_and_audit_version.sql'
+        );
+        self::assertStringContainsString('revision BIGINT UNSIGNED NOT NULL DEFAULT 0', $sql);
+        self::assertStringContainsString('version_id BIGINT UNSIGNED', $sql);
+        self::assertStringContainsString('CHANGE previous_price_minor old_price_minor', $sql);
+        self::assertStringContainsString('CHANGE current_price_minor new_price_minor', $sql);
+        self::assertStringContainsString('fk_price_changes_version', $sql);
+        self::assertStringContainsString('information_schema.columns', $sql);
+    }
 }

@@ -41,7 +41,7 @@ try {
 }
 
 admin_page_start('Редактор черновика', 'admin-shell-wide');
-echo $page->render($version);
+echo $page->render($version, $adminSession->csrfToken());
 ?>
 <script src="/assets/admin-draft.js" defer></script>
 <?php

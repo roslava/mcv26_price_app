@@ -30,7 +30,7 @@ final class DraftEditorPage
     }
 
     /** @param array<string, mixed> $version */
-    public static function render(array $version): string
+    public static function render(array $version, string $csrfToken): string
     {
         if (($version['status'] ?? null) !== 'draft') {
             throw new RuntimeException('Only draft versions can be rendered as editable.');
@@ -49,12 +49,16 @@ final class DraftEditorPage
 
         ob_start();
         ?>
-        <div class="draft-editor" data-draft-editor>
+        <div class="draft-editor"
+             data-draft-editor
+             data-version-id="<?= self::e($version['id']) ?>"
+             data-revision="<?= self::e($version['revision']) ?>"
+             data-csrf-token="<?= self::e($csrfToken) ?>">
             <div class="toolbar draft-toolbar">
                 <div>
                     <p class="eyebrow">Черновик версии №<?= self::e($version['id']) ?></p>
                     <h1><?= self::e($version['title']) ?></h1>
-                    <p class="muted">Редактирование выполняется только в браузере. Сохранение пока недоступно.</p>
+                    <p class="muted">Изменяйте текущие цены и сохраняйте черновик без публикации.</p>
                 </div>
                 <a class="button-link button-secondary" href="/admin/">Назад</a>
             </div>
@@ -76,9 +80,10 @@ final class DraftEditorPage
                 <div><span>Общее изменение цен</span><strong data-summary-percent>0%</strong></div>
                 <div class="draft-actions">
                     <button type="button" class="button-secondary" data-reset-prices>Сбросить</button>
-                    <button type="button" disabled title="Сохранение будет добавлено на следующем этапе">Сохранить</button>
+                    <button type="button" data-save-prices disabled>Сохранить</button>
                 </div>
                 <p class="draft-state" data-draft-state aria-live="polite">Нет несохранённых изменений</p>
+                <p class="draft-save-message" data-save-message role="status" aria-live="polite"></p>
             </section>
 
             <div class="draft-table-wrap">
@@ -104,6 +109,7 @@ final class DraftEditorPage
                             ?>
                             <tr class="service-edit-row<?= $current === $imported ? ' price-unchanged' : '' ?>"
                                 data-price-row
+                                data-service-id="<?= self::e($service['id']) ?>"
                                 data-imported-minor="<?= $imported ?>"
                                 data-loaded-minor="<?= $current ?>">
                                 <td class="service-number"><?= self::e($service['service_number']) ?></td>
