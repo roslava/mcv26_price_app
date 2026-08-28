@@ -45,4 +45,31 @@ final class OriginalXlsxStorage
         return $name;
     }
 
+    public function path(string $storedFilename): string
+    {
+        $this->assertGeneratedFilename($storedFilename);
+        return $this->directory . DIRECTORY_SEPARATOR . $storedFilename;
+    }
+
+    public function matches(string $storedFilename, string $sha256): bool
+    {
+        $path = $this->path($storedFilename);
+        $actual = is_file($path) && is_readable($path) ? hash_file('sha256', $path) : false;
+        return is_string($actual) && hash_equals($sha256, $actual);
+    }
+
+    public function remove(string $storedFilename): void
+    {
+        $path = $this->path($storedFilename);
+        if (is_file($path) && !unlink($path)) {
+            throw new RuntimeException('Could not remove stored original XLSX.');
+        }
+    }
+
+    private function assertGeneratedFilename(string $storedFilename): void
+    {
+        if (!preg_match('/^price_\d{8}_\d{6}_[a-f0-9]{32}\.xlsx$/D', $storedFilename)) {
+            throw new RuntimeException('Stored XLSX filename is invalid.');
+        }
+    }
 }

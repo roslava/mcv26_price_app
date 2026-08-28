@@ -32,21 +32,10 @@ final class DatabasePriceRepository
     /** @param array<string, mixed> $version */
     public function createVersion(array $version): int
     {
-        return $this->transactional(function () use ($version): int {
-            $statement = $this->pdo->prepare(
-                'INSERT INTO price_versions '
-                . '(status, title, price_date, original_filename, stored_xlsx_name, imported_at, created_at) '
-                . "VALUES ('draft', :title, :price_date, :original_filename, :stored_xlsx_name, :imported_at, UTC_TIMESTAMP(6))"
-            );
-            $statement->execute([
-                'title' => $version['title'] ?? null,
-                'price_date' => $version['price_date'] ?? null,
-                'original_filename' => $version['original_filename'] ?? null,
-                'stored_xlsx_name' => $version['stored_xlsx_name'] ?? null,
-                'imported_at' => $version['imported_at'] ?? null,
-            ]);
-            return (int) $this->pdo->lastInsertId();
-        });
+        if ($this->pdo->inTransaction()) {
+            return $this->insertVersion($version);
+        }
+        return $this->transactional(fn (): int => $this->insertVersion($version));
     }
 
     public function createCategory(int $versionId, int $position, string $name): int
@@ -107,35 +96,64 @@ final class DatabasePriceRepository
 
     public function publishVersion(int $versionId): void
     {
-        $this->transactional(function () use ($versionId): void {
-            // The indexed locking read serializes competing publishers, including the no-row gap.
-            $published = $this->pdo->query(
-                "SELECT id FROM price_versions WHERE status = 'published' ORDER BY id FOR UPDATE"
-            )->fetchAll(PDO::FETCH_COLUMN);
+        if ($this->pdo->inTransaction()) {
+            $this->publishVersionWithinTransaction($versionId);
+            return;
+        }
+        $this->transactional(fn () => $this->publishVersionWithinTransaction($versionId));
+    }
 
-            $target = $this->pdo->prepare('SELECT status FROM price_versions WHERE id = ? FOR UPDATE');
-            $target->execute([$versionId]);
-            $status = $target->fetchColumn();
-            if ($status === false) {
-                throw new RuntimeException('Price version not found.');
-            }
-            if ($published !== [] && !in_array((string) $versionId, array_map('strval', $published), true)) {
-                throw new RuntimeException('Another price version is already published.');
-            }
+    /** @param array<string, mixed> $version */
+    private function insertVersion(array $version): int
+    {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO price_versions '
+            . '(status, title, price_date, original_filename, stored_xlsx_name, source_xlsx_sha256, '
+            . 'source_json_sha256, imported_at, created_at) '
+            . "VALUES ('draft', :title, :price_date, :original_filename, :stored_xlsx_name, "
+            . ':source_xlsx_sha256, :source_json_sha256, :imported_at, UTC_TIMESTAMP(6))'
+        );
+        $statement->execute([
+            'title' => $version['title'] ?? null,
+            'price_date' => $version['price_date'] ?? null,
+            'original_filename' => $version['original_filename'] ?? null,
+            'stored_xlsx_name' => $version['stored_xlsx_name'] ?? null,
+            'source_xlsx_sha256' => $version['source_xlsx_sha256'] ?? null,
+            'source_json_sha256' => $version['source_json_sha256'] ?? null,
+            'imported_at' => $version['imported_at'] ?? null,
+        ]);
+        return (int) $this->pdo->lastInsertId();
+    }
 
-            // Re-check under the same locks immediately before the state change.
-            $recheck = $this->pdo->query(
-                "SELECT id FROM price_versions WHERE status = 'published' ORDER BY id FOR UPDATE"
-            )->fetchAll(PDO::FETCH_COLUMN);
-            if ($recheck !== [] && !in_array((string) $versionId, array_map('strval', $recheck), true)) {
-                throw new RuntimeException('Another price version is already published.');
-            }
-            if ($status !== 'published') {
-                $update = $this->pdo->prepare(
-                    "UPDATE price_versions SET status = 'published', published_at = UTC_TIMESTAMP(6) WHERE id = ?"
-                );
-                $update->execute([$versionId]);
-            }
-        });
+    private function publishVersionWithinTransaction(int $versionId): void
+    {
+        // The indexed locking read serializes competing publishers, including the no-row gap.
+        $published = $this->pdo->query(
+            "SELECT id FROM price_versions WHERE status = 'published' ORDER BY id FOR UPDATE"
+        )->fetchAll(PDO::FETCH_COLUMN);
+
+        $target = $this->pdo->prepare('SELECT status FROM price_versions WHERE id = ? FOR UPDATE');
+        $target->execute([$versionId]);
+        $status = $target->fetchColumn();
+        if ($status === false) {
+            throw new RuntimeException('Price version not found.');
+        }
+        if ($published !== [] && !in_array((string) $versionId, array_map('strval', $published), true)) {
+            throw new RuntimeException('Another price version is already published.');
+        }
+
+        // Re-check under the same locks immediately before the state change.
+        $recheck = $this->pdo->query(
+            "SELECT id FROM price_versions WHERE status = 'published' ORDER BY id FOR UPDATE"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        if ($recheck !== [] && !in_array((string) $versionId, array_map('strval', $recheck), true)) {
+            throw new RuntimeException('Another price version is already published.');
+        }
+        if ($status !== 'published') {
+            $update = $this->pdo->prepare(
+                "UPDATE price_versions SET status = 'published', published_at = UTC_TIMESTAMP(6) WHERE id = ?"
+            );
+            $update->execute([$versionId]);
+        }
     }
 }

@@ -3,5 +3,6 @@
 /storage/archive/
 /storage/data/
 /storage/import.lock
+/storage/originals/*.xlsx
 .env
 .DS_Store

@@ -46,6 +46,33 @@ final class DatabasePriceRepositoryIntegrationTest extends TestCase
         }
     }
 
+    public function testAppliedMigrationsAreSkippedOnNormalRerun(): void
+    {
+        $applied = (new MigrationRunner($this->pdo, dirname(__DIR__, 2) . '/migrations'))->migrate();
+        self::assertSame([], $applied);
+    }
+
+    public function testMigration002RecoversWhenDdlExistsWithoutBookkeeping(): void
+    {
+        $this->pdo->exec("DELETE FROM schema_migrations WHERE version = '002_add_publication_fingerprints'");
+        $runner = new MigrationRunner($this->pdo, dirname(__DIR__, 2) . '/migrations');
+
+        self::assertSame(['002_add_publication_fingerprints'], $runner->migrate());
+        self::assertSame([], $runner->migrate());
+        self::assertSame(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+            . "AND table_name = 'price_versions' AND column_name = 'source_xlsx_sha256'"
+        )->fetchColumn());
+        self::assertSame(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() "
+            . "AND table_name = 'price_versions' AND column_name = 'source_json_sha256'"
+        )->fetchColumn());
+        self::assertGreaterThanOrEqual(1, (int) $this->pdo->query(
+            "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() "
+            . "AND table_name = 'price_versions' AND index_name = 'uq_price_versions_source_xlsx_sha256'"
+        )->fetchColumn());
+    }
+
     public function testTransactionRollsBack(): void
     {
         try {

@@ -47,6 +47,10 @@ final class OriginalXlsxStorageTest extends TestCase
             self::assertMatchesRegularExpression('/^price_\d{8}_\d{6}_[a-f0-9]{32}\.xlsx$/', $name);
             self::assertFileExists($this->root . '/originals/' . $name);
             self::assertStringNotContainsString('client-name', $name);
+            self::assertSame($this->root . '/originals/' . $name, $storage->path($name));
+            self::assertTrue($storage->matches($name, (string) hash_file('sha256', $source)));
+            $storage->remove($name);
+            self::assertFileDoesNotExist($this->root . '/originals/' . $name);
         } finally {
             unlink($source);
         }

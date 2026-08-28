@@ -30,4 +30,14 @@ final class MigrationSqlTest extends TestCase
         self::assertGreaterThanOrEqual(7, preg_match_all('/\bINDEX\s+[a-z_]+/i', $this->sql));
         self::assertStringNotContainsStringIgnoringCase('WHERE status', $this->sql);
     }
+
+    public function testAddsPublicationFingerprintsForIdempotency(): void
+    {
+        $sql = (string) file_get_contents(
+            dirname(__DIR__, 2) . '/migrations/002_add_publication_fingerprints.sql'
+        );
+        self::assertStringContainsString('source_xlsx_sha256 CHAR(64)', $sql);
+        self::assertStringContainsString('source_json_sha256 CHAR(64)', $sql);
+        self::assertStringContainsString('UNIQUE INDEX uq_price_versions_source_xlsx_sha256', $sql);
+    }
 }
