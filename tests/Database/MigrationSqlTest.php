@@ -40,4 +40,13 @@ final class MigrationSqlTest extends TestCase
         self::assertStringContainsString('source_json_sha256 CHAR(64)', $sql);
         self::assertStringContainsString('UNIQUE INDEX uq_price_versions_source_xlsx_sha256', $sql);
     }
+
+    public function testScopesSourceIdentityBetweenInitialMigrationAndDraftImports(): void
+    {
+        $sql = (string) file_get_contents(dirname(__DIR__, 2) . '/migrations/003_scope_source_identity.sql');
+        self::assertStringContainsString("'draft:'", $sql);
+        self::assertStringContainsString("'initial:'", $sql);
+        self::assertStringContainsString('UNIQUE INDEX uq_price_versions_source_identity', $sql);
+        self::assertStringContainsString('DROP INDEX uq_price_versions_source_xlsx_sha256', $sql);
+    }
 }

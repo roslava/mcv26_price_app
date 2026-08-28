@@ -19,6 +19,7 @@
         "test": "phpunit",
         "test:integration": "phpunit --group integration",
         "migrate": "php bin/migrate.php",
-        "migrate:current": "php bin/migrate-current-price.php"
+        "migrate:current": "php bin/migrate-current-price.php",
+        "import:draft": "php bin/import-draft.php"
     }
 }

@@ -36,10 +36,18 @@ final class CurrentPublicationMigrator
         }
 
         $newStoredFilename = null;
+        $sourceIdentity = 'initial:' . $xlsxHash;
         try {
             return $this->repository->transactional(
-                function () use ($xlsx, $xlsxPath, $xlsxHash, $jsonHash, &$newStoredFilename): array {
-                    $existingId = $this->findVersionIdByFingerprint($xlsxHash);
+                function () use (
+                    $xlsx,
+                    $xlsxPath,
+                    $xlsxHash,
+                    $jsonHash,
+                    $sourceIdentity,
+                    &$newStoredFilename
+                ): array {
+                    $existingId = $this->findVersionIdByIdentity($sourceIdentity);
                     if ($existingId !== null) {
                         $this->assertPersistedVersionMatches($existingId, $xlsx, $xlsxHash, $jsonHash);
                         return $this->result($existingId, false, $xlsx);
@@ -56,6 +64,7 @@ final class CurrentPublicationMigrator
                         'stored_xlsx_name' => $newStoredFilename,
                         'source_xlsx_sha256' => $xlsxHash,
                         'source_json_sha256' => $jsonHash,
+                        'source_identity' => $sourceIdentity,
                         'imported_at' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
                             ->format('Y-m-d H:i:s.u'),
                     ]);
@@ -89,12 +98,12 @@ final class CurrentPublicationMigrator
         }
     }
 
-    private function findVersionIdByFingerprint(string $hash): ?int
+    private function findVersionIdByIdentity(string $identity): ?int
     {
         $statement = $this->pdo->prepare(
-            'SELECT id FROM price_versions WHERE source_xlsx_sha256 = ? FOR UPDATE'
+            'SELECT id FROM price_versions WHERE source_identity = ? FOR UPDATE'
         );
-        $statement->execute([$hash]);
+        $statement->execute([$identity]);
         $id = $statement->fetchColumn();
         return $id === false ? null : (int) $id;
     }

@@ -109,9 +109,9 @@ final class DatabasePriceRepository
         $statement = $this->pdo->prepare(
             'INSERT INTO price_versions '
             . '(status, title, price_date, original_filename, stored_xlsx_name, source_xlsx_sha256, '
-            . 'source_json_sha256, imported_at, created_at) '
+            . 'source_json_sha256, source_identity, imported_at, created_at) '
             . "VALUES ('draft', :title, :price_date, :original_filename, :stored_xlsx_name, "
-            . ':source_xlsx_sha256, :source_json_sha256, :imported_at, UTC_TIMESTAMP(6))'
+            . ':source_xlsx_sha256, :source_json_sha256, :source_identity, :imported_at, UTC_TIMESTAMP(6))'
         );
         $statement->execute([
             'title' => $version['title'] ?? null,
@@ -120,6 +120,7 @@ final class DatabasePriceRepository
             'stored_xlsx_name' => $version['stored_xlsx_name'] ?? null,
             'source_xlsx_sha256' => $version['source_xlsx_sha256'] ?? null,
             'source_json_sha256' => $version['source_json_sha256'] ?? null,
+            'source_identity' => $version['source_identity'] ?? null,
             'imported_at' => $version['imported_at'] ?? null,
         ]);
         return (int) $this->pdo->lastInsertId();
