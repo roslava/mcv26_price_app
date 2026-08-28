@@ -38,7 +38,7 @@ function admin_redirect(string $path): never
     exit;
 }
 
-function admin_page_start(string $title): void
+function admin_page_start(string $title, string $shellClass = ''): void
 {
     ?>
     <!doctype html>
@@ -50,7 +50,7 @@ function admin_page_start(string $title): void
         <link rel="stylesheet" href="/assets/admin.css">
     </head>
     <body>
-    <main class="admin-shell">
+    <main class="admin-shell<?= $shellClass !== '' ? ' ' . admin_e($shellClass) : '' ?>">
         <header class="site-header">
             <span class="brand-mark" aria-hidden="true">+</span>
             <div>
