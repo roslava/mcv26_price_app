@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 use Mcv26\Price\Exception\ImportException;
 use Mcv26\Price\Exception\StructureException;
-use Mcv26\Price\PriceImporter;
-use Mcv26\Price\PriceRepository;
-use Mcv26\Price\PriceStatusReader;
 use Mcv26\Price\UploadValidator;
+use Mcv26\Price\Admin\AdminUploadImporter;
 use Mcv26\Price\Database\DatabaseConfig;
 use Mcv26\Price\Database\DatabasePriceRepository;
+use Mcv26\Price\Database\DatabasePublicPriceReader;
 use Mcv26\Price\Database\PdoConnectionFactory;
 
 require dirname(__DIR__, 2) . '/src/admin_bootstrap.php';
@@ -50,25 +49,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $flash = ['type' => 'error', 'message' => 'Размер файла превышает допустимые 10 МБ.'];
         } else {
             try {
-                $validator = new UploadValidator();
-                $importer = new PriceImporter($validator);
-                $repository = new PriceRepository($storageDirectory);
-                $data = $repository->importAndPublish(
+                $pdo = PdoConnectionFactory::create(DatabaseConfig::fromEnvironment());
+                $databaseRepository = new DatabasePriceRepository($pdo);
+                $data = (new AdminUploadImporter(
+                    $pdo,
+                    $storageDirectory,
+                    $projectRoot . '/public'
+                ))->import(
                     $upload['tmp_name'],
-                    $validator,
-                    $importer,
                     $upload['name']
                 );
 
                 $flash = [
                     'type' => 'success',
-                    'message' => 'Прайс-лист успешно обновлён.',
-                    'sections' => $data['stats']['sections'],
-                    'items' => $data['stats']['items'],
-                    'warnings' => $data['warnings'],
-                    'imported_at' => $data['imported_at'],
-                    'price_date' => $data['source']['price_date'],
+                    'message' => 'Черновик прайс-листа импортирован.',
+                    'version_id' => $data['version_id'],
+                    'sections' => $data['categories'],
+                    'items' => $data['services'],
+                    'warnings' => [],
+                    'imported_at' => null,
+                    'price_date' => null,
                 ];
+                $storedVersion = $databaseRepository->loadVersion($data['version_id']);
+                if (is_array($storedVersion)) {
+                    $flash['imported_at'] = $storedVersion['imported_at'];
+                    $flash['price_date'] = $storedVersion['price_date'];
+                }
             } catch (StructureException $exception) {
                 $flash = [
                     'type' => 'error',
@@ -108,9 +114,23 @@ try {
 }
 $statusError = null;
 try {
-    $priceStatus = (new PriceStatusReader($storageDirectory . '/data/price.json'))->read();
+    $publishedData = (new DatabasePublicPriceReader(
+        PdoConnectionFactory::create(DatabaseConfig::fromEnvironment())
+    ))->read();
+    $priceStatus = [
+        'published' => true,
+        'title' => $publishedData['source']['title'],
+        'price_date' => $publishedData['source']['price_date'],
+        'sections' => $publishedData['stats']['sections'],
+        'items' => $publishedData['stats']['items'],
+        'imported_at' => null,
+    ];
+    if ($publishedVersionId !== null) {
+        $publishedVersion = $databaseRepository->loadVersion($publishedVersionId);
+        $priceStatus['imported_at'] = is_array($publishedVersion) ? $publishedVersion['imported_at'] : null;
+    }
 } catch (Throwable $exception) {
-    error_log('Price status read failed: ' . $exception->getMessage());
+    error_log('Published DB price status read failed: ' . $exception->getMessage());
     $priceStatus = ['published' => false];
     $statusError = 'Не удалось прочитать сведения о текущем прайс-листе.';
 }
@@ -133,6 +153,7 @@ admin_page_start('Обновление прайс-листа');
         <strong><?= admin_e($flash['message'] ?? '') ?></strong>
         <?php if (($flash['type'] ?? '') === 'success'): ?>
             <dl class="result-grid">
+                <?php if (isset($flash['version_id'])): ?><div><dt>Черновик</dt><dd><a href="/admin/draft.php?id=<?= admin_e($flash['version_id']) ?>">№<?= admin_e($flash['version_id']) ?></a></dd></div><?php endif; ?>
                 <div><dt>Разделов</dt><dd><?= admin_e($flash['sections'] ?? '') ?></dd></div>
                 <div><dt>Услуг</dt><dd><?= admin_e($flash['items'] ?? '') ?></dd></div>
                 <div><dt>Предупреждений</dt><dd><?= count(is_array($flash['warnings'] ?? null) ? $flash['warnings'] : []) ?></dd></div>

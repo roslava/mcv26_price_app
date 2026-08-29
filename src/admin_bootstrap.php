@@ -11,6 +11,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
+header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

@@ -8,6 +8,7 @@ use Mcv26\Price\Database\DatabaseConfig;
 use Mcv26\Price\Database\DatabasePriceRepository;
 use Mcv26\Price\Database\MigrationRunner;
 use Mcv26\Price\Database\PdoConnectionFactory;
+use Mcv26\Price\Admin\AdminUploadImporter;
 use Mcv26\Price\Exception\ImportException;
 use Mcv26\Price\Import\DraftVersionImporter;
 use Mcv26\Price\Migration\CurrentPublicationMigrator;
@@ -27,7 +28,7 @@ final class DraftVersionImporterIntegrationTest extends TestCase
     private DatabasePriceRepository $repository;
     private DraftVersionImporter $draftImporter;
     private CurrentPublicationMigrator $currentMigrator;
-    private string $storageRoot;
+    private ?string $storageRoot = null;
     private string $xlsxPath;
     private string $jsonPath;
     /** @var list<string> */
@@ -80,12 +81,14 @@ final class DraftVersionImporterIntegrationTest extends TestCase
         foreach ($this->temporaryFiles as $file) {
             @unlink($file);
         }
-        foreach (glob($this->storageRoot . '/originals/*') ?: [] as $file) {
-            unlink($file);
+        if ($this->storageRoot !== null && is_dir($this->storageRoot)) {
+            foreach (glob($this->storageRoot . '/originals/*') ?: [] as $file) {
+                @unlink($file);
+            }
+            @rmdir($this->storageRoot . '/originals');
+            @rmdir($this->storageRoot . '/public');
+            @rmdir($this->storageRoot);
         }
-        rmdir($this->storageRoot . '/originals');
-        rmdir($this->storageRoot . '/public');
-        rmdir($this->storageRoot);
     }
 
     public function testValidRealXlsxCreatesOrderedDraftWithoutChangingPublishedVersion(): void
@@ -126,6 +129,25 @@ final class DraftVersionImporterIntegrationTest extends TestCase
         self::assertSame(1, (int) $this->pdo->query(
             "SELECT COUNT(*) FROM price_versions WHERE status='published'"
         )->fetchColumn());
+    }
+
+    public function testAdminUploadCompositionCreatesDraftWithoutChangingPublication(): void
+    {
+        $published = $this->currentMigrator->migrate($this->xlsxPath, $this->jsonPath);
+        $beforeXlsx = hash_file('sha256', $this->xlsxPath);
+        $beforeJson = hash_file('sha256', $this->jsonPath);
+
+        $result = (new AdminUploadImporter($this->pdo, $this->storageRoot, $this->storageRoot . '/public'))
+            ->import($this->xlsxPath, 'admin-controller-upload.xlsx');
+
+        self::assertTrue($result['created']);
+        self::assertSame('draft', $result['status']);
+        self::assertNotSame($published['version_id'], $result['version_id']);
+        self::assertSame($published['version_id'], $this->repository->publishedVersionId());
+        self::assertSame('published', $this->repository->loadVersion($published['version_id'])['status']);
+        self::assertSame('draft', $this->repository->loadVersion($result['version_id'])['status']);
+        self::assertSame($beforeXlsx, hash_file('sha256', $this->xlsxPath));
+        self::assertSame($beforeJson, hash_file('sha256', $this->jsonPath));
     }
 
     public function testExactDuplicateReturnsExistingDraftWithoutNewGraphOrFile(): void

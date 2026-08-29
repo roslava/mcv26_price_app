@@ -10,8 +10,11 @@ ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
 header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: no-cache, must-revalidate');
 header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
 header('Referrer-Policy: strict-origin-when-cross-origin');
+header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
