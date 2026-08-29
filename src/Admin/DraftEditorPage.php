@@ -80,11 +80,24 @@ final class DraftEditorPage
                 <div><span>Общее изменение цен</span><strong data-summary-percent>0%</strong></div>
                 <div class="draft-actions">
                     <button type="button" class="button-secondary" data-reset-prices>Сбросить</button>
+                    <button type="button" class="button-secondary" data-download-xlsx>Скачать Excel</button>
                     <button type="button" data-save-prices disabled>Сохранить</button>
                 </div>
                 <p class="draft-state" data-draft-state aria-live="polite">Нет несохранённых изменений</p>
                 <p class="draft-save-message" data-save-message role="status" aria-live="polite"></p>
             </section>
+
+            <dialog class="export-dialog" data-export-dialog>
+                <form method="dialog">
+                    <h2>Скачать Excel</h2>
+                    <p data-export-dialog-text>В черновике есть несохранённые изменения.</p>
+                    <div class="export-dialog-actions">
+                        <button type="button" data-save-download>Сохранить и скачать</button>
+                        <button type="button" class="button-secondary" data-download-saved>Скачать сохранённую версию</button>
+                        <button type="submit" class="button-secondary">Отмена</button>
+                    </div>
+                </form>
+            </dialog>
 
             <div class="draft-table-wrap">
                 <table class="draft-table">

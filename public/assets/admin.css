@@ -295,6 +295,11 @@ dd {
     padding: 7px 12px;
 }
 
+.export-dialog { width: min(100% - 32px, 560px); padding: 22px; border: 1px solid var(--border); border-radius: 12px; }
+.export-dialog::backdrop { background: rgb(13 39 46 / 45%); }
+.export-dialog h2 { margin-top: 0; }
+.export-dialog-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 18px; }
+
 .draft-state {
     grid-column: 1 / -1;
     margin: 0;

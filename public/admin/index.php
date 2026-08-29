@@ -192,6 +192,8 @@ admin_page_start('Обновление прайс-листа');
                         <?php endif; ?>
                     </div>
                     <div class="version-actions">
+                        <a class="button-link button-secondary"
+                           href="/admin/export-version.php?id=<?= admin_e($version['id']) ?>">Скачать Excel</a>
                         <?php if ($version['status'] === 'draft'): ?>
                             <a class="button-link button-secondary" href="/admin/draft.php?id=<?= admin_e($version['id']) ?>">Редактировать</a>
                             <button type="button" data-version-action="publish"

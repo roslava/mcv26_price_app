@@ -8,7 +8,12 @@
     const rows = Array.from(editor.querySelectorAll('[data-price-row]'));
     const inputs = rows.map((row) => row.querySelector('.price-input'));
     const saveButton = editor.querySelector('[data-save-prices]');
+    const downloadButton = editor.querySelector('[data-download-xlsx]');
     const saveMessage = editor.querySelector('[data-save-message]');
+    const exportDialog = editor.querySelector('[data-export-dialog]');
+    const saveDownloadButton = editor.querySelector('[data-save-download]');
+    const downloadSavedButton = editor.querySelector('[data-download-saved]');
+    const exportDialogText = editor.querySelector('[data-export-dialog-text]');
     const summary = {
         changed: editor.querySelector('[data-summary-changed]'),
         increased: editor.querySelector('[data-summary-increased]'),
@@ -149,9 +154,9 @@
         saveMessage.textContent = '';
     });
 
-    saveButton.addEventListener('click', async () => {
+    async function saveDraft() {
         update();
-        if (!hasValidUnsavedChanges || invalidCount > 0 || isSaving) return;
+        if (!hasValidUnsavedChanges || invalidCount > 0 || isSaving) return false;
 
         const prices = rows.map((row, index) => ({
             service_id: row.dataset.serviceId,
@@ -182,7 +187,7 @@
                     ? 'Черновик изменён в другой вкладке. Перезагрузите страницу перед сохранением.'
                     : result?.message || 'Не удалось сохранить изменения.';
                 saveMessage.classList.add('has-errors');
-                return;
+                return false;
             }
 
             rows.forEach((row, index) => {
@@ -193,13 +198,58 @@
             editor.dataset.revision = String(result.revision);
             saveMessage.textContent = `Сохранено. Новая ревизия: ${result.revision}.`;
             saveMessage.classList.add('is-success');
+            return true;
         } catch (error) {
             saveMessage.textContent = 'Сеть недоступна. Изменения не сохранены.';
             saveMessage.classList.add('has-errors');
+            return false;
         } finally {
             isSaving = false;
             update();
         }
+    }
+
+    function downloadSavedVersion() {
+        let frame = document.querySelector('[data-export-frame]');
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.hidden = true;
+            frame.dataset.exportFrame = '';
+            document.body.appendChild(frame);
+        }
+        frame.src = `/admin/export-version.php?id=${encodeURIComponent(editor.dataset.versionId)}&request=${Date.now()}`;
+    }
+
+    saveButton.addEventListener('click', async () => {
+        await saveDraft();
+    });
+
+    downloadButton.addEventListener('click', () => {
+        update();
+        if (!hasValidUnsavedChanges && invalidCount === 0) {
+            downloadSavedVersion();
+            return;
+        }
+        saveDownloadButton.disabled = invalidCount > 0;
+        exportDialogText.textContent = invalidCount > 0
+            ? 'Есть некорректные цены. Можно скачать только последнюю сохранённую версию.'
+            : 'В черновике есть несохранённые изменения. Выберите, что скачать.';
+        exportDialog.showModal();
+    });
+
+    saveDownloadButton.addEventListener('click', async () => {
+        if (invalidCount > 0) return;
+        saveDownloadButton.disabled = true;
+        const saved = await saveDraft();
+        saveDownloadButton.disabled = false;
+        if (!saved) return;
+        exportDialog.close();
+        downloadSavedVersion();
+    });
+
+    downloadSavedButton.addEventListener('click', () => {
+        exportDialog.close();
+        downloadSavedVersion();
     });
 
     window.addEventListener('beforeunload', (event) => {

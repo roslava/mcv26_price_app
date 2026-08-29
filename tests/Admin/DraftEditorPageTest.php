@@ -69,5 +69,9 @@ final class DraftEditorPageTest extends TestCase
         self::assertStringContainsString('data-service-id="992"', $html);
         self::assertStringNotContainsString('<th scope="col">ID</th>', $html);
         self::assertStringContainsString('data-save-prices disabled', $html);
+        self::assertStringContainsString('data-download-xlsx', $html);
+        self::assertStringContainsString('data-save-download', $html);
+        self::assertStringContainsString('data-download-saved', $html);
+        self::assertStringContainsString('Скачать сохранённую версию', $html);
     }
 }
