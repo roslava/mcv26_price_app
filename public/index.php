@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-use Mcv26\Price\PublicPriceReader;
+use Mcv26\Price\Database\DatabaseConfig;
+use Mcv26\Price\Database\DatabasePublicPriceReader;
+use Mcv26\Price\Database\PdoConnectionFactory;
 
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
@@ -26,7 +28,7 @@ function public_price(mixed $value): string
     }
 
     $formatted = number_format((int) $matches[1], 0, ',', "\u{00A0}");
-    $fraction = rtrim($matches[2] ?? '', '0');
+    $fraction = $matches[2] ?? '';
     if ($fraction !== '') {
         $formatted .= ',' . $fraction;
     }
@@ -48,7 +50,9 @@ function public_price_date(mixed $value): ?string
 }
 
 try {
-    $priceData = (new PublicPriceReader(dirname(__DIR__) . '/storage/data/price.json'))->read();
+    $priceData = (new DatabasePublicPriceReader(
+        PdoConnectionFactory::create(DatabaseConfig::fromEnvironment())
+    ))->read();
 } catch (Throwable $exception) {
     error_log('Public price read failed: ' . $exception->getMessage());
     http_response_code(503);
