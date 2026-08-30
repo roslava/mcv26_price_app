@@ -1,5 +1,11 @@
 # Деплой проекта MCV26 Price
 
+Общее описание приложения, локальный запуск и архитектура находятся в
+корневом [`README.md`](../README.md). Этот файл фиксирует фактическую
+схему текущего production-деплоя на Timeweb и заменяет старую инструкцию
+обновления рабочей копии непосредственно в `_mcv26_app`, сохранённую в
+`mcv26_price_hosting_documentation.docx`.
+
 ## Общая схема
 
 Рабочая схема деплоя:
@@ -50,7 +56,7 @@ https://mcv26.ru/price-admin/
 
 ------------------------------------------------------------------------
 
-## Обычный деплой после изменений
+## Быстрый деплой
 
 ### 1. Локально проверить изменения
 
@@ -213,6 +219,35 @@ https://mcv26.ru/new-price/
 ``` text
 DEPLOY OK
 ```
+
+------------------------------------------------------------------------
+
+## Миграции и Composer
+
+Текущий `deploy-price.sh` не запускает SQL-миграции и не обновляет
+Composer dependencies. Он сохраняет production `.env` и `vendor/`.
+
+Если в релизе появился новый файл в `migrations/`, после доставки кода
+нужно выполнить:
+
+``` bash
+/opt/php83/bin/php \
+  -d auto_prepend_file=/home/m/mcv26/public_html/_mcv26_app/src/load_env.php \
+  /home/m/mcv26/public_html/_mcv26_app/bin/migrate.php
+```
+
+Если изменился `composer.lock`, до включения зависящего от него кода
+нужно отдельно обновить `vendor/` в production-приложении. Точный путь
+к Composer 2 из hosting-документа — `/home/m/mcv26/bin/composer2`:
+
+``` bash
+cd /home/m/mcv26/public_html/_mcv26_app
+/opt/php83/bin/php /home/m/mcv26/bin/composer2 \
+  install --no-dev --prefer-dist --optimize-autoloader
+```
+
+Обычный deploy этого не делает; наличие пути следует проверить на
+сервере перед обновлением зависимостей.
 
 ------------------------------------------------------------------------
 
