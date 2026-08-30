@@ -26,7 +26,7 @@ jobs:
           printf '%s\n' "${{ secrets.MCV26_SSH_KEY }}" > ~/.ssh/mcv26_deploy
           chmod 600 ~/.ssh/mcv26_deploy
 
-          ssh-keyscan -H mcv26.ru >> ~/.ssh/known_hosts
+          printf '%s\n' "${{ secrets.MCV26_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy application code
@@ -69,6 +69,8 @@ jobs:
                 /home/m/mcv26/public_html/_mcv26_app/public/index.php
 
               curl -fsS https://mcv26.ru/new-price/ > /dev/null
+              curl -fsS https://mcv26.ru/new-price/assets/price.css > /dev/null
+              curl -fsS https://mcv26.ru/new-price/assets/price.js > /dev/null
 
               echo "Production deploy OK"
             '
