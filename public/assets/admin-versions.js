@@ -1,6 +1,9 @@
 (() => {
     'use strict';
 
+    const basePath = document.querySelector('[data-admin-base-path]')?.dataset.adminBasePath || '/admin/';
+    const appUrl = (path) => `${basePath.replace(/\/$/, '')}/${String(path).replace(/^\/+/, '')}`;
+
     const uploadAccordion = document.querySelector('[data-upload-accordion]');
     const uploadToggle = uploadAccordion?.querySelector('[data-upload-accordion-toggle]');
     const uploadContent = uploadAccordion?.querySelector('[data-upload-accordion-content]');
@@ -65,7 +68,7 @@
             <div><dt>Сейчас на сайте</dt><dd>${escapeHtml(review.current_items)} услуг</dd></div></dl>
             <p class="reassurance">${currentText}</p><div class="review-actions">
             <button type="button" data-review-publish data-version-id="${escapeHtml(review.version_id)}" data-revision="${escapeHtml(review.revision)}" data-published-version-id="${escapeHtml(review.expected_published_version_id || '')}">Опубликовать загруженный прайс на сайте</button>
-            <a class="button-link button-secondary" href="/admin/">Отменить и вернуться</a></div></div>`;
+            <a class="button-link button-secondary" href="${appUrl('')}">Отменить и вернуться</a></div></div>`;
     };
 
     if (uploadForm && fileInput && fileName && uploadStatus && uploadStatusText && uploadSpinner && uploadResult) {
@@ -154,7 +157,7 @@
         uploadPublishConfirm.textContent = 'Публикуем…';
         uploadPublishMessage.hidden = true;
         try {
-            const response = await fetch('/admin/publish-version.php', {
+            const response = await fetch(appUrl('publish-version.php'), {
                 method: 'POST', credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json', 'X-CSRF-Token': panel.dataset.csrfToken},
                 body: JSON.stringify({version_id: pendingReviewButton.dataset.versionId, expected_revision: pendingReviewButton.dataset.revision, expected_published_version_id: pendingReviewButton.dataset.publishedVersionId || null}),
@@ -198,7 +201,7 @@
             body.expected_published_version_id = panel.dataset.publishedVersionId || null;
         }
         try {
-            const response = await fetch(publish ? '/admin/publish-version.php' : '/admin/restore-version.php', {
+            const response = await fetch(publish ? appUrl('publish-version.php') : appUrl('restore-version.php'), {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json', 'X-CSRF-Token': panel.dataset.csrfToken},
@@ -212,7 +215,7 @@
                 return;
             }
             if (publish) window.location.reload();
-            else window.location.assign(`/admin/draft.php?id=${result.draft_version_id}`);
+            else window.location.assign(`${appUrl('draft.php')}?id=${result.draft_version_id}`);
         } catch (error) {
             message.textContent = 'Сеть недоступна. Действие не выполнено.';
             message.classList.add('has-errors');

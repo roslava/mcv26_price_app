@@ -1,0 +1,50 @@
+# Include this snippet from the existing HTTPS server block for mcv26.ru.
+# Replace APP_ROOT and PHP_SOCKET for the target host. Do not replace the
+# site's existing WordPress location / or /wp-admin/ rules.
+
+set $mcv26_price_root /var/www/mcv26_price_app;
+
+location = /new-price {
+    return 301 /new-price/;
+}
+
+location = /price-admin {
+    return 301 /price-admin/;
+}
+
+# Do not expose the repository's physical public/admin directory through the
+# public prefix; the admin is intentionally available only at /price-admin/.
+location ^~ /new-price/admin/ {
+    return 404;
+}
+
+location ~ ^/(new-price|price-admin)/\.(?!well-known) {
+    return 404;
+}
+
+# PHP entry points for the public application. The regex is intentionally
+# scoped to this prefix and cannot capture /wp-admin/ or other site URLs.
+location ~ ^/new-price/(.+\.php)$ {
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $mcv26_price_root/public/$1;
+    fastcgi_param DOCUMENT_ROOT $mcv26_price_root/public;
+    fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+}
+
+location /new-price/ {
+    alias $mcv26_price_root/public/;
+    try_files $uri $uri/ /new-price/index.php?$query_string;
+}
+
+# The admin URL is mapped to the app's existing public/admin directory.
+location ~ ^/price-admin/(.+\.php)$ {
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $mcv26_price_root/public/admin/$1;
+    fastcgi_param DOCUMENT_ROOT $mcv26_price_root/public/admin;
+    fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+}
+
+location /price-admin/ {
+    alias $mcv26_price_root/public/admin/;
+    try_files $uri $uri/ /price-admin/index.php?$query_string;
+}

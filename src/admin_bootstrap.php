@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Mcv26\Price\AdminSession;
+use Mcv26\Price\AppUrl;
 
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
@@ -35,8 +36,13 @@ function admin_e(mixed $value): string
 
 function admin_redirect(string $path): never
 {
-    header('Location: ' . $path, true, 303);
+    header('Location: ' . AppUrl::adminPath($path), true, 303);
     exit;
+}
+
+function admin_url(string $path): string
+{
+    return AppUrl::adminPath($path);
 }
 
 function admin_page_start(
@@ -55,13 +61,13 @@ function admin_page_start(
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title><?= admin_e($title) ?> — MCV26</title>
-        <link rel="stylesheet" href="/assets/admin.css">
+        <link rel="stylesheet" href="<?= admin_e(AppUrl::assetPath('admin.css')) ?>">
     </head>
     <body>
-    <main class="admin-shell<?= $shellClass !== '' ? ' ' . admin_e($shellClass) : '' ?>">
+    <main data-admin-base-path="<?= admin_e(AppUrl::adminBasePath()) ?>" class="admin-shell<?= $shellClass !== '' ? ' ' . admin_e($shellClass) : '' ?>">
         <header class="site-header">
             <div class="site-header-brand">
-                <img class="site-logo" src="/assets/mcv26_logo_h.png" alt="Медицинский Центр Власова">
+                <img class="site-logo" src="<?= admin_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
                 <span>Управление прайс-листом</span>
             </div>
             <?php if ($showPriceSearch): ?>
@@ -71,7 +77,7 @@ function admin_page_start(
                 </div>
             <?php endif; ?>
             <?php if ($logoutCsrfToken !== null): ?>
-                <form class="site-header-logout" method="post" action="/admin/logout.php">
+                <form class="site-header-logout" method="post" action="<?= admin_e(AppUrl::adminPath('logout.php')) ?>">
                     <input type="hidden" name="csrf_token" value="<?= admin_e($logoutCsrfToken) ?>">
                     <button type="submit" class="button-secondary">Выйти</button>
                 </form>

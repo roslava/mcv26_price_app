@@ -11,7 +11,7 @@ if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'POST'], true)) {
 }
 
 if ($adminSession->isAuthenticated()) {
-    admin_redirect('/admin/');
+    admin_redirect('');
 }
 
 $configurationError = $adminSession->configurationError();
@@ -26,7 +26,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $login = is_string($_POST['login'] ?? null) ? $_POST['login'] : '';
         $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
         if ($adminSession->authenticate($login, $password)) {
-            admin_redirect('/admin/');
+            admin_redirect('');
         }
         $error = 'Неверный логин или пароль.';
     }
@@ -48,7 +48,7 @@ admin_page_start('Вход');
         <div class="notice error" role="alert"><?= admin_e($error) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="/admin/login.php" class="form-stack">
+    <form method="post" action="<?= admin_e(admin_url('login.php')) ?>" class="form-stack">
         <input type="hidden" name="csrf_token" value="<?= admin_e($adminSession->csrfToken()) ?>">
         <label>
             <span>Логин</span>

@@ -12,7 +12,7 @@ final class PublicIndexPresentationTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__) . '/public/index.php');
 
-        self::assertStringContainsString('src="/assets/mcv26_logo_h.png"', $source);
+        self::assertStringContainsString("AppUrl::assetPath('mcv26_logo_h.png')", $source);
         self::assertStringContainsString('alt="Медицинский Центр Власова"', $source);
         self::assertStringNotContainsString('class="brand-mark"', $source);
         self::assertStringNotContainsString('src="https://storage.yandexcloud.net', $source);
@@ -67,7 +67,7 @@ final class PublicIndexPresentationTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__) . '/public/index.php');
 
-        self::assertStringContainsString('class="admin-service-link" href="/admin/"', $source);
+        self::assertStringContainsString("class=\"admin-service-link\" href=\"<?= public_e(AppUrl::adminPath('/')) ?>\"", $source);
         self::assertStringContainsString('title="Администрирование прайса"', $source);
         self::assertStringContainsString('aria-label="Администрирование прайса"', $source);
         self::assertStringContainsString('<svg viewBox="0 0 24 24"', $source);

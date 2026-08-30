@@ -16,8 +16,8 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('Редактировать уже имеющийся прайс', $primary);
         self::assertStringContainsString('Изменить услуги или цены вручную.', $primary);
         self::assertStringContainsString('Продолжить редактирование', $primary);
-        self::assertStringContainsString('href="/admin/draft.php?id=', $primary);
-        self::assertStringContainsString('action="/admin/edit-current.php"', $primary);
+        self::assertStringContainsString("admin_url('draft.php')", $primary);
+        self::assertStringContainsString("admin_url('edit-current.php')", $primary);
         self::assertStringContainsString('<button type="submit">Редактировать прайс</button>', $primary);
         self::assertStringContainsString('name="csrf_token"', $primary);
         self::assertStringContainsString('Загрузить новый прайс', $primary);
@@ -36,7 +36,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString("($" . "newVersion['status'] ?? null) === 'draft'", $selection);
         self::assertStringContainsString('$editableVersion = $newVersion;', $selection);
         self::assertStringContainsString('Продолжить редактирование', $editCard);
-        self::assertStringContainsString("/admin/draft.php?id=<?= admin_e($" . "editableVersion['id']) ?>", $editCard);
+        self::assertStringContainsString("admin_url('draft.php')) ?>?id=<?= admin_e($" . "editableVersion['id']) ?>", $editCard);
         self::assertStringNotContainsString('createVersion(', $selection);
         self::assertStringNotContainsString('restore-version.php', $selection);
     }
@@ -85,7 +85,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('<summary>Скачать Excel</summary>', $sidebar);
         self::assertStringContainsString('Посмотреть прайс на сайте', $sidebar);
         self::assertStringContainsString('Продолжить редактирование', $sidebar);
-        self::assertStringContainsString('/admin/export-version.php?id=', $sidebar);
+        self::assertStringContainsString("admin_url('export-version.php')) ?>?id=", $sidebar);
         self::assertStringContainsString('data-version-action="restore"', $sidebar);
     }
 
@@ -197,7 +197,7 @@ final class AdminIndexPresentationTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/src/admin_bootstrap.php');
 
-        self::assertStringContainsString('src="/assets/mcv26_logo_h.png"', $source);
+        self::assertStringContainsString("AppUrl::assetPath('mcv26_logo_h.png')", $source);
         self::assertStringContainsString('alt="Медицинский Центр Власова"', $source);
         self::assertStringNotContainsString('class="brand-mark"', $source);
     }
@@ -211,7 +211,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('class="site-header-brand"', $header);
         self::assertStringContainsString('Управление прайс-листом', $header);
         self::assertStringContainsString('class="site-header-logout"', $header);
-        self::assertStringContainsString('action="/admin/logout.php"', $header);
+        self::assertStringContainsString("AppUrl::adminPath('logout.php')", $header);
         self::assertStringContainsString('>Выйти</button>', $header);
         self::assertStringContainsString("admin_page_start('Прайс-лист', '', $" . "adminSession->csrfToken())", $index);
         self::assertSame(1, substr_count($index, '>Выйти</button>') + substr_count($header, '>Выйти</button>'));

@@ -17,6 +17,6 @@ final class EditCurrentEndpointTest extends TestCase
         self::assertStringContainsString("header('Allow: POST')", $source);
         self::assertStringContainsString('$adminSession->validateCsrf(', $source);
         self::assertStringContainsString('CurrentPublishedVersionEditorStarter', $source);
-        self::assertStringContainsString("admin_redirect('/admin/draft.php?id='", $source);
+        self::assertStringContainsString("admin_redirect('draft.php?id='", $source);
     }
 }

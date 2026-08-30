@@ -13,7 +13,7 @@ use Mcv26\Price\Exception\VersionActionException;
 require dirname(__DIR__, 2) . '/src/admin_bootstrap.php';
 
 if (!$adminSession->isAuthenticated()) {
-    admin_redirect('/admin/login.php');
+    admin_redirect('login.php');
 }
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     http_response_code(405);

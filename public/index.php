@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Mcv26\Price\Database\DatabaseConfig;
 use Mcv26\Price\Database\DatabasePublicPriceReader;
 use Mcv26\Price\Database\PdoConnectionFactory;
+use Mcv26\Price\AppUrl;
 
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
@@ -67,7 +68,7 @@ try {
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="robots" content="noindex">
         <title>Прайс-лист временно недоступен — MCV26</title>
-        <link rel="stylesheet" href="/assets/price.css">
+        <link rel="stylesheet" href="<?= public_e(AppUrl::assetPath('price.css')) ?>">
     </head>
     <body>
     <main class="error-shell">
@@ -96,15 +97,15 @@ foreach ($sections as $section) {
     <meta name="description" content="Актуальный прайс-лист медицинского центра MCV26: услуги, коды и цены.">
     <meta name="robots" content="index,follow">
     <title>Прайс-лист — MCV26</title>
-    <link rel="stylesheet" href="/assets/price.css">
-    <script src="/assets/price.js" defer></script>
+    <link rel="stylesheet" href="<?= public_e(AppUrl::assetPath('price.css')) ?>">
+    <script src="<?= public_e(AppUrl::assetPath('price.js')) ?>" defer></script>
 </head>
 <body>
 <div class="public-hero-area">
 <header class="public-header">
     <div class="container header-inner">
-        <a class="brand" href="/">
-            <img class="public-logo" src="/assets/mcv26_logo_h.png" alt="Медицинский Центр Власова">
+        <a class="brand" href="<?= public_e(AppUrl::publicPath('/')) ?>">
+            <img class="public-logo" src="<?= public_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
         </a>
         <?php if ($priceDate !== null): ?>
             <p class="header-date">Прайс от <time datetime="<?= public_e($priceData['source']['price_date']) ?>"><?= public_e($priceDate) ?></time></p>
@@ -186,7 +187,7 @@ foreach ($sections as $section) {
 <footer class="public-footer">
     <div class="container public-footer-inner">
         <p>Информация о ценах может быть обновлена.</p>
-        <a class="admin-service-link" href="/admin/" title="Администрирование прайса" aria-label="Администрирование прайса">
+        <a class="admin-service-link" href="<?= public_e(AppUrl::adminPath('/')) ?>" title="Администрирование прайса" aria-label="Администрирование прайса">
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false"><path d="M14.5 3a6.5 6.5 0 0 0-5.9 9.23L2 18.83V22h3.17l1.5-1.5H9v-2.33l1.77-1.77A6.5 6.5 0 1 0 14.5 3Zm0 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" fill="currentColor"/></svg>
         </a>
     </div>

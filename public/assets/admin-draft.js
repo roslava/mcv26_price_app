@@ -3,6 +3,8 @@
 
     const editor = document.querySelector('[data-draft-editor]');
     if (!editor) return;
+    const basePath = document.querySelector('[data-admin-base-path]')?.dataset.adminBasePath || '/admin/';
+    const appUrl = (path) => `${basePath.replace(/\/$/, '')}/${String(path).replace(/^\/+/, '')}`;
 
     const aboutToggle = editor.querySelector('[data-draft-about-toggle]');
     const aboutContent = editor.querySelector('[data-draft-about-content]');
@@ -254,7 +256,7 @@
         saveMessage.className = 'draft-save-message';
         update();
         try {
-            const response = await fetch('/admin/save-draft.php', {
+            const response = await fetch(appUrl('save-draft.php'), {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -304,7 +306,7 @@
             frame.dataset.exportFrame = '';
             document.body.appendChild(frame);
         }
-        frame.src = `/admin/export-version.php?id=${encodeURIComponent(editor.dataset.versionId)}&request=${Date.now()}`;
+        frame.src = `${appUrl('export-version.php')}?id=${encodeURIComponent(editor.dataset.versionId)}&request=${Date.now()}`;
     }
 
     saveButton.addEventListener('click', async () => {
@@ -347,7 +349,7 @@
         saveMessage.textContent = 'Публикация…';
         saveMessage.className = 'draft-save-message';
         try {
-            const response = await fetch('/admin/publish-version.php', {
+            const response = await fetch(appUrl('publish-version.php'), {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json', 'X-CSRF-Token': editor.dataset.csrfToken},

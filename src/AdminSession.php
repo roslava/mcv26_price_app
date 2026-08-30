@@ -20,7 +20,7 @@ final class AdminSession
             session_name('mcv26_admin');
             session_set_cookie_params([
                 'lifetime' => 0,
-                'path' => '/admin/',
+                'path' => AppUrl::adminBasePath(),
                 'secure' => self::isHttps(),
                 'httponly' => true,
                 'samesite' => 'Lax',

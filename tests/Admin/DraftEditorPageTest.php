@@ -38,7 +38,7 @@ final class DraftEditorPageTest extends TestCase
     {
         $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-draft.js');
 
-        self::assertStringContainsString("fetch('/admin/publish-version.php'", $script);
+        self::assertStringContainsString("fetch(appUrl('publish-version.php')", $script);
         self::assertStringContainsString('expected_revision: editor.dataset.revision', $script);
         self::assertStringContainsString('expected_published_version_id: editor.dataset.publishedVersionId || null', $script);
         self::assertStringContainsString('publishButton.disabled = unsaved > 0 || invalid > 0 || isSaving;', $script);

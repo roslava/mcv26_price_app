@@ -1,10 +1,10 @@
-# Timeweb deployment checklist
+# Production deployment checklist for mcv26.ru
 
-This standalone PHP/MySQL application is intended for PHP 8.3 shared hosting. It requires no Node.js, Docker, Redis, daemon, or WordPress integration.
+This standalone PHP/MySQL application is intended for PHP 8.3 shared hosting. It requires no Node.js, Docker, Redis, daemon, or WordPress integration. It is mounted into the existing HTTPS virtual host at `/new-price/` (public) and `/price-admin/` (admin); `/wp-admin/` remains WordPress-owned.
 
 ## Layout
 
-Create `price.mcv26.ru` with its document root set directly to the repository's `public/` directory. Keep `src/`, `vendor/`, `migrations/`, `bin/`, and `storage/` outside that document root. This public-only root is the primary protection for source code, database scripts, credentials, and stored originals; do not rely on URL obscurity or `.htaccess` as the primary boundary.
+Keep the repository outside the WordPress document root when possible, and expose only its `public/` directory through the two scoped nginx locations in `nginx-mcv26-price.conf.example`. Keep `src/`, `vendor/`, `migrations/`, `bin/`, and `storage/` outside the web-served directory.
 
 ## Install
 
@@ -30,9 +30,11 @@ MCV26_DB_USER=REPLACE_DEDICATED_DB_USER
 MCV26_DB_PASSWORD=REPLACE_DB_PASSWORD
 MCV26_ADMIN_LOGIN=REPLACE_ADMIN_LOGIN
 MCV26_ADMIN_PASSWORD_HASH=REPLACE_PASSWORD_HASH
+MCV26_PUBLIC_BASE_PATH=/new-price/
+MCV26_ADMIN_BASE_PATH=/price-admin/
 ```
 
-Before migration, verify from the hosting environment that PHP can see all five required variables without printing their secret values. If the exact Timeweb mechanism has not yet been verified, **Verify in the current Timeweb control panel during deployment.** Do not put database or administrator secrets in `.user.ini`.
+Before migration, verify from the hosting environment that PHP can see all seven required variables without printing their secret values. If the exact hosting mechanism has not yet been verified, **verify it in the current control panel during deployment.** Do not put database or administrator secrets in `.user.ini`.
 
 Generate a password hash with PHP (do not store the plaintext password or resulting hash in Git). Preferred interactive method (the password is read from standard input, not command-line arguments or a file):
 
@@ -64,15 +66,15 @@ The second command verifies the retained `storage/uploads/current.xlsx` against 
 
 ## Smoke test
 
-1. Open `https://price.mcv26.ru/` and confirm the published date and prices.
-2. Open `/admin/login.php` and confirm configured credentials work.
+1. Open `https://mcv26.ru/new-price/` and confirm the published date and prices.
+2. Open `/price-admin/login.php` and confirm configured credentials work.
 3. Upload an XLSX; confirm it creates a draft.
 4. Edit/save the draft; confirm public output remains on the previous publication.
 5. Export the draft XLSX.
 6. Publish it; confirm public output switches and the previous version is archived.
 7. Restore an archived version; confirm it creates a private draft only.
 8. Confirm `src/`, `vendor/`, `migrations/`, `bin/`, `storage/`, and credentials are not web-accessible.
-9. Request `https://price.mcv26.ru/.user.ini`; it must return 403 or 404 and never expose file contents. If it is downloadable, deployment is **not complete** until dotfile access is blocked by the hosting configuration.
+9. Request `https://mcv26.ru/new-price/.env.production.example`; it must return 403 or 404 and never expose file contents. If it is downloadable, deployment is **not complete** until example/env files are kept outside the served directory or blocked by nginx.
 10. Confirm effective PHP settings have `display_errors=Off` and `log_errors=On`.
 11. Perform a controlled non-sensitive error/log smoke test, verify the corresponding PHP error appears in the Timeweb hosting log interface or configured PHP error log, and verify no technical error is shown to the browser. Verify the exact log location in the current Timeweb hosting panel during deployment.
 
@@ -84,4 +86,4 @@ Retain the Stage 9 checkpoint `5bea2955666a910143ca410b6d4ecb84efcbc544`, Stage 
 
 ## HTTPS, sessions, and logging
 
-Serve the subdomain over HTTPS. Admin cookies are HttpOnly and SameSite=Lax, strict session mode is enabled, and the Secure flag is derived from the actual HTTPS request. Do not blindly trust arbitrary `X-Forwarded-Proto`. Keep server-side logging enabled and browser error display disabled. HSTS should be enabled only after HTTPS for this subdomain is confirmed.
+Serve both paths from the existing `https://mcv26.ru` virtual host. Admin cookies are HttpOnly and SameSite=Lax, strict session mode is enabled, and the Secure flag is derived from the actual HTTPS request. Do not blindly trust arbitrary `X-Forwarded-Proto`. Keep server-side logging enabled and browser error display disabled. HSTS should be enabled only after HTTPS for the whole domain is confirmed.

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Mcv26\Price\Admin\DraftEditorPage;
+use Mcv26\Price\AppUrl;
 use Mcv26\Price\Database\DatabaseConfig;
 use Mcv26\Price\Database\DatabasePriceRepository;
 use Mcv26\Price\Database\PdoConnectionFactory;
@@ -10,7 +11,7 @@ use Mcv26\Price\Database\PdoConnectionFactory;
 require dirname(__DIR__, 2) . '/src/admin_bootstrap.php';
 
 if (!$adminSession->isAuthenticated()) {
-    admin_redirect('/admin/login.php');
+    admin_redirect('login.php');
 }
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     http_response_code(405);
@@ -21,7 +22,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 $submittedId = $_GET['id'] ?? null;
 if (!is_string($submittedId) || !preg_match('/^[1-9]\d*$/D', $submittedId)) {
     $adminSession->setFlash(['type' => 'error', 'message' => 'Некорректный номер черновика.']);
-    admin_redirect('/admin/');
+    admin_redirect('');
 }
 
 try {
@@ -32,7 +33,7 @@ try {
     $publishedVersionId = $repository->publishedVersionId();
 } catch (RuntimeException $exception) {
     $adminSession->setFlash(['type' => 'error', 'message' => 'Черновик не найден или недоступен для редактирования.']);
-    admin_redirect('/admin/');
+    admin_redirect('');
 } catch (Throwable $exception) {
     error_log('Draft editor load failed: ' . $exception->getMessage());
     http_response_code(500);
@@ -46,12 +47,12 @@ admin_page_start(
     'Редактор черновика',
     'admin-shell-wide',
     null,
-    '/admin/',
+    admin_url(''),
     'Вернуться на главную страницу админки',
     true
 );
 echo $page->render($version, $adminSession->csrfToken(), $publishedVersionId);
 ?>
-<script src="/assets/admin-draft.js" defer></script>
+<script src="<?= admin_e(AppUrl::assetPath('admin-draft.js')) ?>" defer></script>
 <?php
 admin_page_end();
