@@ -504,6 +504,8 @@ dd {
 .draft-publication-state[hidden] { display: none; }
 
 .draft-table-wrap {
+    min-width: 0;
+    max-width: 100%;
     max-height: calc(100vh - 32px);
     overflow: auto;
     border: 1px solid var(--border);
@@ -543,7 +545,7 @@ dd {
 
 .draft-table {
     width: 100%;
-    min-width: 1120px;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 13px;
 }
@@ -570,7 +572,7 @@ dd {
     border-bottom: 1px solid #b8cbd1;
     background: #e9f1f3;
     box-shadow: 0 2px 5px rgb(28 60 70 / 8%);
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .category-row th {
@@ -582,34 +584,72 @@ dd {
 }
 
 .service-number {
-    width: 80px;
+    width: 7%;
 }
 
 .service-code {
-    width: 155px;
+    width: 12%;
+    overflow-wrap: anywhere;
+}
+
+.service-name {
     overflow-wrap: anywhere;
 }
 
 .money-cell,
+.price-input-cell,
 .percent-cell {
-    width: 140px;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+    text-align: center;
 }
 
-.price-input-cell {
-    width: 150px;
+.draft-table td.money-cell {
+    text-align: center;
 }
 
-.price-input {
-    width: 125px;
+.draft-table thead th:nth-child(1) { width: 7%; }
+.draft-table thead th:nth-child(2) { width: 12%; }
+.draft-table thead th:nth-child(3) { width: 31%; }
+.draft-table thead th:nth-child(4) { width: 15%; }
+.draft-table thead th:nth-child(5) { width: 17.5%; }
+.draft-table thead th:nth-child(6) { width: 17.5%; }
+
+.draft-table thead th:nth-child(4),
+.draft-table thead th:nth-child(5),
+.draft-table thead th:nth-child(6) {
+    text-align: center;
+}
+
+.draft-table .price-input,
+.draft-table .percent-input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 36px;
     min-height: 36px;
     padding: 6px 8px;
+    margin: 0;
     border: 1px solid #aebfc5;
     border-radius: 6px;
+    box-sizing: border-box;
     font: inherit;
+    line-height: 22px;
     font-variant-numeric: tabular-nums;
-    text-align: right;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.draft-table .percent-input {
+    appearance: textfield;
+    color: inherit;
+    font-weight: inherit;
+}
+
+.draft-table .percent-input::-webkit-inner-spin-button,
+.draft-table .percent-input::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
 }
 
 .price-increased .percent-cell {
@@ -630,7 +670,8 @@ dd {
     background: var(--error-bg);
 }
 
-.price-invalid .price-input {
+.price-invalid .price-input,
+.price-invalid .percent-input {
     border-color: #c33;
     box-shadow: 0 0 0 2px rgb(204 51 51 / 12%);
 }
@@ -676,6 +717,8 @@ dd {
     .site-header { flex-wrap: wrap; }
     .site-header-brand { flex: 1 1 auto; }
     .site-header-search { flex: 1 0 100%; max-width: none; order: 3; }
+
+    .draft-table { min-width: 600px; }
 }
 
 @media (max-width: 980px) {

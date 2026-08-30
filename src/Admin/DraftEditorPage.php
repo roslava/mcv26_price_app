@@ -126,7 +126,15 @@ final class DraftEditorPage
                                            value="<?= self::decimal($current) ?>"
                                            aria-label="Текущая цена: <?= self::e($service['name']) ?>">
                                 </td>
-                                <td class="percent-cell" data-row-percent>0%</td>
+                                <td class="percent-cell">
+                                    <input type="number"
+                                           class="percent-input"
+                                           step="any"
+                                           autocomplete="off"
+                                           value="0"
+                                           data-row-percent
+                                           aria-label="Изменение в процентах: <?= self::e($service['name']) ?>">
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

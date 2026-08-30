@@ -19,6 +19,7 @@
     const MAX_MINOR = 9223372036854775807n;
     const rows = Array.from(editor.querySelectorAll('[data-price-row]'));
     const inputs = rows.map((row) => row.querySelector('.price-input'));
+    const percentInputs = rows.map((row) => row.querySelector('.percent-input'));
     const searchInput = document.querySelector('[data-service-search]');
     const searchClear = document.querySelector('[data-service-search-clear]');
     const searchEmpty = editor.querySelector('[data-service-search-empty]');
@@ -124,7 +125,30 @@
         return `${sign}${absolute / 100n}${fraction ? `,${fraction}` : ''}%`;
     }
 
-    function update() {
+    function percentValue(current, imported) {
+        const hundredths = roundedDivide((current - imported) * 10000n, imported);
+        const absolute = hundredths < 0n ? -hundredths : hundredths;
+        const fraction = String(absolute % 100n).padStart(2, '0').replace(/0+$/, '');
+        return `${hundredths < 0n ? '-' : ''}${absolute / 100n}${fraction ? `.${fraction}` : ''}`;
+    }
+
+    function parsePercent(text) {
+        const match = /^([+-]?)(\d{1,12})(?:[.,](\d{1,6}))?$/.exec(text.trim());
+        if (!match) return null;
+        const scale = 10n ** BigInt((match[3] || '').length);
+        const absolute = BigInt(match[2]) * scale + BigInt(match[3] || '0');
+        return {value: match[1] === '-' ? -absolute : absolute, scale};
+    }
+
+    function priceFromPercent(imported, parsedPercent) {
+        const denominator = 100n * parsedPercent.scale;
+        const numerator = imported * (denominator + parsedPercent.value);
+        if (numerator <= 0n) return null;
+        const current = roundedDivide(numerator, denominator);
+        return current > 0n && current <= MAX_MINOR ? current : null;
+    }
+
+    function update(percentSourceIndex = null) {
         let originalTotal = 0n;
         let currentTotal = 0n;
         let changed = 0;
@@ -137,20 +161,23 @@
             const imported = BigInt(row.dataset.importedMinor);
             const loaded = BigInt(row.dataset.loadedMinor);
             const input = inputs[index];
+            const percentInput = percentInputs[index];
             const current = parseMinor(input.value);
             originalTotal += imported;
             row.classList.remove('price-increased', 'price-decreased', 'price-unchanged', 'price-invalid');
             input.removeAttribute('aria-invalid');
+            percentInput.removeAttribute('aria-invalid');
 
-            if (current === null) {
+            const editedPercent = index === percentSourceIndex ? parsePercent(percentInput.value) : null;
+            const priceForEditedPercent = editedPercent === null ? null : priceFromPercent(imported, editedPercent);
+            if (current === null || (index === percentSourceIndex && priceForEditedPercent === null)) {
                 invalid++;
                 row.classList.add('price-invalid');
-                input.setAttribute('aria-invalid', 'true');
-                row.querySelector('[data-row-percent]').textContent = 'Ошибка';
+                (current === null ? input : percentInput).setAttribute('aria-invalid', 'true');
                 return;
             }
             currentTotal += current;
-            row.querySelector('[data-row-percent]').textContent = percent(current, imported);
+            if (index !== percentSourceIndex) percentInput.value = percentValue(current, imported);
             if (current > imported) {
                 increased++;
                 row.classList.add('price-increased');
@@ -235,9 +262,41 @@
         });
     });
 
+    percentInputs.forEach((input, index) => {
+        input.addEventListener('input', () => {
+            const parsed = parsePercent(input.value);
+            const current = parsed === null
+                ? null
+                : priceFromPercent(BigInt(rows[index].dataset.importedMinor), parsed);
+            if (current !== null) inputs[index].value = decimal(current);
+            update(index);
+        });
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                inputs[index].value = decimal(BigInt(rows[index].dataset.loadedMinor));
+                input.value = percentValue(
+                    BigInt(rows[index].dataset.loadedMinor),
+                    BigInt(rows[index].dataset.importedMinor)
+                );
+                input.blur();
+                update();
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                input.blur();
+                inputs[index + 1]?.focus();
+                inputs[index + 1]?.select();
+            }
+        });
+        input.addEventListener('blur', () => update());
+    });
+
     resetButton.addEventListener('click', () => {
         rows.forEach((row, index) => {
             inputs[index].value = decimal(BigInt(row.dataset.loadedMinor));
+            percentInputs[index].value = percentValue(
+                BigInt(row.dataset.loadedMinor),
+                BigInt(row.dataset.importedMinor)
+            );
         });
         update();
         saveMessage.textContent = '';

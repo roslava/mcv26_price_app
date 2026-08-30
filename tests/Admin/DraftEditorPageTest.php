@@ -93,6 +93,20 @@ final class DraftEditorPageTest extends TestCase
         self::assertStringContainsString('aboutContent.hidden = !expanded;', $script);
     }
 
+    public function testPriceAndPercentInputsAreRecalculatedInBothDirections(): void
+    {
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-draft.js');
+
+        self::assertStringContainsString("const percentInputs = rows.map((row) => row.querySelector('.percent-input'));", $script);
+        self::assertStringContainsString('function priceFromPercent(imported, parsedPercent)', $script);
+        self::assertStringContainsString('const numerator = imported * (denominator + parsedPercent.value);', $script);
+        self::assertStringContainsString('const hundredths = roundedDivide((current - imported) * 10000n, imported);', $script);
+        self::assertStringContainsString("input.addEventListener('input', () => {", $script);
+        self::assertStringContainsString('if (current !== null) inputs[index].value = decimal(current);', $script);
+        self::assertStringContainsString('if (index !== percentSourceIndex) percentInput.value = percentValue(current, imported);', $script);
+        self::assertStringContainsString('const result = (absolute + denominator / 2n) / denominator;', $script);
+    }
+
     public function testEditorBackLinkIsRenderedAsSimpleRightAlignedHeaderLink(): void
     {
         $endpoint = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/draft.php');
@@ -171,6 +185,9 @@ final class DraftEditorPageTest extends TestCase
         self::assertStringContainsString('data-imported-minor="100000"', $html);
         self::assertStringContainsString('value="1100,50"', $html);
         self::assertSame(2, substr_count($html, 'class="price-input"'));
+        self::assertSame(2, substr_count($html, 'class="percent-input"'));
+        self::assertStringContainsString('type="number"', $html);
+        self::assertStringContainsString('step="any"', $html);
         self::assertStringContainsString('data-revision="4"', $html);
         self::assertStringContainsString('data-csrf-token="csrf-token-value"', $html);
         self::assertStringContainsString('data-published-version-id="3"', $html);
