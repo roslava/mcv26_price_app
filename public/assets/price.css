@@ -122,14 +122,16 @@ h1 {
     font-size: 18px;
 }
 
-.hero-home-link,
-.price-home-link {
-    color: inherit;
+.hero-home-link:link,
+.hero-home-link:visited,
+.price-home-link:link,
+.price-home-link:visited {
     font-size: 14px;
     text-decoration: none;
 }
 
-.hero-home-link {
+.hero-home-link:link,
+.hero-home-link:visited {
     display: inline-block;
     margin-top: 10px;
     color: rgb(255 255 255 / 92%);
@@ -142,7 +144,8 @@ h1 {
     text-underline-offset: 3px;
 }
 
-.price-home-link {
+.price-home-link:link,
+.price-home-link:visited {
     display: block;
     margin-top: 14px;
     color: var(--blue);
@@ -298,7 +301,7 @@ h1 {
     align-items: center;
     max-width: 100%;
     padding: 3px 6px;
-    border: 1px solid transparent;
+    border: 0;
     border-radius: 5px;
     background: #f9f8e1;
     color: #173243;
@@ -310,13 +313,24 @@ h1 {
     overflow-wrap: anywhere;
 }
 
-.section-nav a:hover {
-    background: #f1efcf;
+.section-nav a:link,
+.section-nav a:visited,
+.section-nav a:hover,
+.section-nav a:focus-visible {
+    border: 0;
+    outline: 0;
+    background: #f9f8e1;
     color: var(--brand-blue);
 }
 
 .section-nav a.is-active,
-.section-nav a[aria-current="location"] {
+.section-nav a.is-active:hover,
+.section-nav a.is-active:focus-visible,
+.section-nav a[aria-current="location"],
+.section-nav a[aria-current="location"]:hover,
+.section-nav a[aria-current="location"]:focus-visible {
+    border: 0;
+    outline: 0;
     background: #ffd3b2;
     color: #173243;
 }

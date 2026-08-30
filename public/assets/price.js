@@ -6,7 +6,7 @@
     const status = document.querySelector('#search-status');
     const noResults = document.querySelector('#no-results');
     const backToTools = document.querySelector('.back-to-tools');
-    if (!(input instanceof HTMLInputElement) || !status || !noResults || sections.length === 0) {
+    if (sections.length === 0) {
         return;
     }
 
@@ -61,21 +61,28 @@
         item.navItem?.querySelector('a')?.addEventListener('click', () => setActiveSection(item.element));
     });
 
-    if ('IntersectionObserver' in window) {
-        const sectionObserver = new IntersectionObserver((entries) => {
-            const intersecting = entries
-                .filter((entry) => entry.isIntersecting)
-                .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-            if (intersecting.length > 0) {
-                setActiveSection(intersecting[0].target);
-            }
-        }, { rootMargin: '-100px 0px -65% 0px', threshold: [0, 1] });
-        sections.forEach((section) => sectionObserver.observe(section));
-    }
+    let sectionTicking = false;
+    const scheduleActiveSectionUpdate = () => {
+        if (sectionTicking) {
+            return;
+        }
+        sectionTicking = true;
+        window.requestAnimationFrame(() => {
+            setActiveSectionFromPosition();
+            sectionTicking = false;
+        });
+    };
 
     setActiveSectionFromPosition();
     window.addEventListener('load', setActiveSectionFromPosition, { once: true });
     window.addEventListener('pageshow', setActiveSectionFromPosition);
+    window.addEventListener('hashchange', scheduleActiveSectionUpdate);
+    window.addEventListener('scroll', scheduleActiveSectionUpdate, { passive: true });
+    window.addEventListener('resize', scheduleActiveSectionUpdate);
+
+    if (!(input instanceof HTMLInputElement) || !status || !noResults) {
+        return;
+    }
 
     const update = () => {
         const query = normalize(input.value);
