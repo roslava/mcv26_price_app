@@ -1,0 +1,74 @@
+name: Deploy MCV26 Price
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: mcv26-price-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "${{ secrets.MCV26_SSH_KEY }}" > ~/.ssh/mcv26_deploy
+          chmod 600 ~/.ssh/mcv26_deploy
+
+          ssh-keyscan -H mcv26.ru >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy application code
+        shell: bash
+        run: |
+          rsync -av \
+            -e "ssh -i ~/.ssh/mcv26_deploy -o IdentitiesOnly=yes" \
+            --exclude='.env' \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='storage/' \
+            --exclude='vendor/' \
+            ./ \
+            mcv26@mcv26.ru:/home/m/mcv26/public_html/_mcv26_app/
+
+      - name: Publish assets
+        shell: bash
+        run: |
+          ssh \
+            -i ~/.ssh/mcv26_deploy \
+            -o IdentitiesOnly=yes \
+            mcv26@mcv26.ru '
+              set -e
+
+              rsync -av \
+                /home/m/mcv26/public_html/_mcv26_app/public/assets/ \
+                /home/m/mcv26/public_html/new-price/assets/
+            '
+
+      - name: Production check
+        shell: bash
+        run: |
+          ssh \
+            -i ~/.ssh/mcv26_deploy \
+            -o IdentitiesOnly=yes \
+            mcv26@mcv26.ru '
+              set -e
+
+              /opt/php83/bin/php -l \
+                /home/m/mcv26/public_html/_mcv26_app/public/index.php
+
+              curl -fsS https://mcv26.ru/new-price/ > /dev/null
+
+              echo "Production deploy OK"
+            '
