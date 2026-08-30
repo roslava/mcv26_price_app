@@ -44,7 +44,8 @@ function admin_page_start(
     string $shellClass = '',
     ?string $logoutCsrfToken = null,
     ?string $headerLinkHref = null,
-    ?string $headerLinkLabel = null
+    ?string $headerLinkLabel = null,
+    bool $showPriceSearch = false
 ): void
 {
     ?>
@@ -63,6 +64,12 @@ function admin_page_start(
                 <img class="site-logo" src="/assets/mcv26_logo_h.png" alt="Медицинский Центр Власова">
                 <span>Управление прайс-листом</span>
             </div>
+            <?php if ($showPriceSearch): ?>
+                <div class="site-header-search" role="search">
+                    <input type="search" placeholder="Поиск по услугам" aria-label="Поиск по услугам" autocomplete="off" data-service-search>
+                    <button type="button" aria-label="Очистить поиск" title="Очистить поиск" data-service-search-clear hidden>×</button>
+                </div>
+            <?php endif; ?>
             <?php if ($logoutCsrfToken !== null): ?>
                 <form class="site-header-logout" method="post" action="/admin/logout.php">
                     <input type="hidden" name="csrf_token" value="<?= admin_e($logoutCsrfToken) ?>">

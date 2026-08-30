@@ -132,6 +132,7 @@ final class DraftEditorPage
                         </tbody>
                     <?php endforeach; ?>
                 </table>
+                <p class="draft-search-empty" data-service-search-empty role="status" hidden>Услуги не найдены</p>
             </div>
             <aside class="draft-sidebar" aria-label="Сведения и действия с черновиком">
                 <section class="draft-sidebar-section draft-about-accordion" data-draft-about-accordion>

@@ -17,6 +17,17 @@
     const MAX_MINOR = 9223372036854775807n;
     const rows = Array.from(editor.querySelectorAll('[data-price-row]'));
     const inputs = rows.map((row) => row.querySelector('.price-input'));
+    const searchInput = document.querySelector('[data-service-search]');
+    const searchClear = document.querySelector('[data-service-search-clear]');
+    const searchEmpty = editor.querySelector('[data-service-search-empty]');
+    const categories = Array.from(editor.querySelectorAll('.draft-category'));
+    const searchableRows = rows.map((row) => ({
+        row,
+        text: [row.querySelector('.service-number'), row.querySelector('.service-code'), row.querySelector('.service-name')]
+            .map((cell) => cell?.textContent || '')
+            .join(' ')
+            .toLocaleLowerCase('ru-RU'),
+    }));
     const saveButton = editor.querySelector('[data-save-prices]');
     const publishButton = editor.querySelector('[data-publish-prices]');
     const publicationState = editor.querySelector('[data-publication-state]');
@@ -50,7 +61,30 @@
     let invalidCount = 0;
     let isSaving = false;
     let isPublishing = false;
+    let publicationCompleted = false;
     const isCurrentPublishedClone = editor.dataset.currentPublishedClone === 'true';
+
+    const filterServices = () => {
+        const query = searchInput.value.trim().toLocaleLowerCase('ru-RU');
+        let visibleCount = 0;
+        searchableRows.forEach(({row, text}) => {
+            const matches = query === '' || text.includes(query);
+            row.hidden = !matches;
+            if (matches) visibleCount++;
+        });
+        categories.forEach((category) => {
+            category.hidden = !Array.from(category.querySelectorAll('[data-price-row]'))
+                .some((row) => !row.hidden);
+        });
+        searchClear.hidden = query === '';
+        searchEmpty.hidden = visibleCount > 0;
+    };
+    searchInput.addEventListener('input', filterServices);
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        filterServices();
+        searchInput.focus();
+    });
 
     function parseMinor(text) {
         const normalized = text.trim().replace(',', '.');
@@ -158,6 +192,18 @@
         draftStatus.className = alreadyPublished ? 'status-published-badge' : 'status-draft';
         downloadButton.hidden = unsaved > 0 || invalid > 0 || isSaving;
         resetButton.hidden = (unsaved === 0 && invalid === 0) || isSaving;
+        if (publicationCompleted) {
+            summary.state.textContent = 'Прайс опубликован.';
+            summary.state.classList.remove('has-errors', 'is-modified');
+            publishButton.hidden = true;
+            saveButton.hidden = true;
+            resetButton.hidden = true;
+            downloadButton.hidden = false;
+            publicationState.hidden = false;
+            publicationState.textContent = 'Прайс опубликован на сайте.';
+            draftStatus.textContent = 'Опубликован';
+            draftStatus.className = 'status-published-badge';
+        }
     }
 
     inputs.forEach((input, index) => {
@@ -320,7 +366,10 @@
                 saveMessage.classList.add('has-errors');
                 return;
             }
-            window.location.assign('/');
+            publicationCompleted = true;
+            inputs.forEach((input) => { input.disabled = true; });
+            publishDialog.close();
+            saveMessage.textContent = '';
         } catch (error) {
             const message = 'Сеть недоступна. Прайс не опубликован.';
             publishDialogMessage.textContent = message;

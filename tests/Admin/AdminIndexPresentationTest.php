@@ -189,6 +189,8 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString("uploadPublishConfirm.textContent = 'Публикуем…';", $script);
         self::assertStringContainsString('if (!pendingReviewButton || reviewPublishing) return;', $script);
         self::assertStringContainsString('uploadPublishMessage.hidden = false;', $script);
+        self::assertStringContainsString("pendingReviewButton.textContent = 'Прайс опубликован';", $script);
+        self::assertStringContainsString("setUploadStatus('success', 'Прайс опубликован.');", $script);
     }
 
     public function testAdminHeaderUsesLocalClientLogo(): void

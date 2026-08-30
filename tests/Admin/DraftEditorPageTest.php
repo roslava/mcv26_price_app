@@ -45,7 +45,9 @@ final class DraftEditorPageTest extends TestCase
         self::assertStringContainsString('saveButton.hidden = unsaved === 0 && invalid === 0;', $script);
         self::assertStringContainsString('downloadButton.hidden = unsaved > 0 || invalid > 0 || isSaving;', $script);
         self::assertStringContainsString('resetButton.hidden = (unsaved === 0 && invalid === 0) || isSaving;', $script);
-        self::assertStringContainsString("window.location.assign('/')", $script);
+        self::assertStringNotContainsString("window.location.assign('/')", $script);
+        self::assertStringContainsString("summary.state.textContent = 'Прайс опубликован.';", $script);
+        self::assertStringContainsString('publicationCompleted = true;', $script);
         self::assertStringNotContainsString('window.confirm(', $script);
         self::assertStringContainsString("publishDialog.showModal();", $script);
         self::assertStringContainsString("publishConfirmButton.textContent = 'Публикуем…';", $script);
@@ -85,6 +87,26 @@ final class DraftEditorPageTest extends TestCase
         self::assertStringContainsString("'Вернуться на главную страницу админки'", $endpoint);
         self::assertStringContainsString('<a class="site-header-link"', $bootstrap);
         self::assertMatchesRegularExpression('/\.site-header-link\s*\{[^}]*color:\s*#fff;[^}]*text-decoration:\s*none;/s', $styles);
+    }
+
+    public function testEditorHeaderSearchFiltersServicesAndEmptyCategoriesClientSide(): void
+    {
+        $endpoint = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/draft.php');
+        $bootstrap = (string) file_get_contents(dirname(__DIR__, 2) . '/src/admin_bootstrap.php');
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-draft.js');
+
+        self::assertStringContainsString("'Вернуться на главную страницу админки',\n    true", $endpoint);
+        self::assertStringContainsString('placeholder="Поиск по услугам" aria-label="Поиск по услугам"', $bootstrap);
+        self::assertStringContainsString('data-service-search-clear hidden', $bootstrap);
+        self::assertStringContainsString('input::-webkit-search-cancel-button', $styles = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin.css'));
+        self::assertStringContainsString('input::-ms-clear', $styles);
+        self::assertStringContainsString("row.querySelector('.service-number')", $script);
+        self::assertStringContainsString("row.querySelector('.service-code')", $script);
+        self::assertStringContainsString("row.querySelector('.service-name')", $script);
+        self::assertStringContainsString(".toLocaleLowerCase('ru-RU')", $script);
+        self::assertStringContainsString("searchInput.addEventListener('input', filterServices)", $script);
+        self::assertStringContainsString('category.hidden = !Array.from(', $script);
+        self::assertStringContainsString("searchInput.value = '';", $script);
     }
 
     public function testRendersEscapedMetadataAndOrderedCategoriesAndServices(): void
@@ -152,6 +174,7 @@ final class DraftEditorPageTest extends TestCase
         self::assertStringContainsString('data-publish-cancel autofocus>Отмена</button>', $html);
         self::assertStringContainsString('data-publish-confirm>Опубликовать</button>', $html);
         self::assertStringContainsString('<aside class="draft-sidebar"', $html);
+        self::assertStringContainsString('data-service-search-empty role="status" hidden>Услуги не найдены', $html);
         self::assertStringContainsString('<div class="draft-status-line">', $html);
         self::assertStringContainsString('data-draft-state aria-live="polite">Нет несохранённых изменений.</p>', $html);
         self::assertStringContainsString('aria-expanded="false" aria-controls="draft-about-content"', $html);

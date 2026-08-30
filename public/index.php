@@ -14,7 +14,7 @@ header('Cache-Control: no-cache, must-revalidate');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: strict-origin-when-cross-origin');
-header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://storage.yandexcloud.net; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -100,6 +100,7 @@ foreach ($sections as $section) {
     <script src="/assets/price.js" defer></script>
 </head>
 <body>
+<div class="public-hero-area">
 <header class="public-header">
     <div class="container header-inner">
         <a class="brand" href="/">
@@ -111,10 +112,8 @@ foreach ($sections as $section) {
     </div>
 </header>
 
-<main>
     <section class="hero">
         <div class="container">
-            <p class="eyebrow">Медицинский центр</p>
             <h1>Прайс-лист</h1>
             <p class="intro">Цены носят информационный характер и могут обновляться.</p>
             <?php if ($priceData !== null): ?>
@@ -122,33 +121,38 @@ foreach ($sections as $section) {
             <?php endif; ?>
         </div>
     </section>
+</div>
 
+<main>
     <?php if ($priceData === null): ?>
         <div class="container price-content">
             <p class="empty-price-message" role="status">Прайс-лист пока не опубликован.</p>
         </div>
     <?php else: ?>
     <div id="price-tools" class="container price-content">
-        <section class="search-panel" aria-labelledby="search-heading">
-            <h2 id="search-heading" class="visually-hidden">Поиск по прайс-листу</h2>
-            <label for="price-search">Найти услугу</label>
-            <input id="price-search" type="search" placeholder="Название услуги или код" autocomplete="off">
-            <p id="search-status" class="search-status" aria-live="polite">Показано услуг: <?= public_e($serviceCount) ?></p>
-            <p id="no-results" class="no-results" hidden>Ничего не найдено</p>
-        </section>
+        <div class="price-layout">
+            <nav class="section-nav" aria-label="Разделы прайс-листа">
+                <h2>Разделы</h2>
+                <ul>
+                    <?php foreach ($sections as $index => $section): ?>
+                        <li data-nav-section="<?= $index + 1 ?>">
+                            <a href="#section-<?= $index + 1 ?>"><?= public_e($section['name']) ?></a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </nav>
 
-        <nav class="section-nav" aria-label="Разделы прайс-листа">
-            <h2>Разделы</h2>
-            <ul>
-                <?php foreach ($sections as $index => $section): ?>
-                    <li data-nav-section="<?= $index + 1 ?>">
-                        <a href="#section-<?= $index + 1 ?>"><?= public_e($section['name']) ?></a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </nav>
+            <div class="price-main">
+                <section class="search-panel" aria-labelledby="search-heading">
+                    <h2 id="search-heading" class="visually-hidden">Поиск по прайс-листу</h2>
+                    <label for="price-search">Найти услугу</label>
+                    <input id="price-search" type="search" placeholder="Название услуги или код" autocomplete="off">
+                    <p id="search-status" class="search-status" aria-live="polite">Показано услуг: <?= public_e($serviceCount) ?></p>
+                    <a class="back-to-tools" href="#" aria-label="В начало страницы">В начало</a>
+                    <p id="no-results" class="no-results" hidden>Ничего не найдено</p>
+                </section>
 
-        <div id="price-sections" data-total-services="<?= public_e($serviceCount) ?>">
+                <div id="price-sections" data-total-services="<?= public_e($serviceCount) ?>">
             <?php foreach ($sections as $index => $section): ?>
                 <section
                     id="section-<?= $index + 1 ?>"
@@ -172,16 +176,19 @@ foreach ($sections as $section) {
                     </ul>
                 </section>
             <?php endforeach; ?>
+                </div>
+            </div>
         </div>
     </div>
     <?php endif; ?>
 </main>
 
-<?php if ($priceData !== null): ?><a class="back-to-tools" href="#price-tools">↑ К поиску</a><?php endif; ?>
-
 <footer class="public-footer">
-    <div class="container">
+    <div class="container public-footer-inner">
         <p>Информация о ценах может быть обновлена.</p>
+        <a class="admin-service-link" href="/admin/" title="Администрирование прайса" aria-label="Администрирование прайса">
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false"><path d="M14.5 3a6.5 6.5 0 0 0-5.9 9.23L2 18.83V22h3.17l1.5-1.5H9v-2.33l1.77-1.77A6.5 6.5 0 1 0 14.5 3Zm0 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" fill="currentColor"/></svg>
+        </a>
     </div>
 </footer>
 </body>

@@ -6,7 +6,6 @@
     const status = document.querySelector('#search-status');
     const noResults = document.querySelector('#no-results');
     const backToTools = document.querySelector('.back-to-tools');
-
     if (!(input instanceof HTMLInputElement) || !status || !noResults || sections.length === 0) {
         return;
     }
@@ -64,16 +63,16 @@
     input.addEventListener('input', update);
 
     if (backToTools instanceof HTMLAnchorElement) {
-        const sectionNavigation = document.querySelector('.section-nav');
+        const searchPanel = document.querySelector('.search-panel');
         let ticking = false;
+        let revealAt = searchPanel instanceof HTMLElement
+            ? searchPanel.getBoundingClientRect().bottom + window.scrollY + 80
+            : 400;
 
         backToTools.hidden = true;
 
         const updateBackToTools = () => {
-            const threshold = sectionNavigation instanceof HTMLElement
-                ? sectionNavigation.getBoundingClientRect().bottom + window.scrollY + 80
-                : 600;
-            backToTools.hidden = window.scrollY <= threshold;
+            backToTools.hidden = window.scrollY <= revealAt;
             ticking = false;
         };
 
@@ -84,7 +83,13 @@
             }
         }, { passive: true });
 
-        window.addEventListener('resize', updateBackToTools);
+        window.addEventListener('resize', () => {
+            if (searchPanel instanceof HTMLElement && window.scrollY === 0) {
+                revealAt = searchPanel.getBoundingClientRect().bottom + window.scrollY + 80;
+            }
+            updateBackToTools();
+        });
         updateBackToTools();
     }
+
 })();

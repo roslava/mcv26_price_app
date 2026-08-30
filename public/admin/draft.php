@@ -47,7 +47,8 @@ admin_page_start(
     'admin-shell-wide',
     null,
     '/admin/',
-    'Вернуться на главную страницу админки'
+    'Вернуться на главную страницу админки',
+    true
 );
 echo $page->render($version, $adminSession->csrfToken(), $publishedVersionId);
 ?>

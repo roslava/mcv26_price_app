@@ -146,6 +146,7 @@
     });
     uploadPublishConfirm?.addEventListener('click', async () => {
         if (!pendingReviewButton || reviewPublishing) return;
+        let publicationCompleted = false;
         reviewPublishing = true;
         pendingReviewButton.disabled = true;
         uploadPublishConfirm.disabled = true;
@@ -164,13 +165,17 @@
                 uploadPublishMessage.hidden = false;
                 return;
             }
-            window.location.reload();
+            publicationCompleted = true;
+            panel.dataset.publishedVersionId = pendingReviewButton.dataset.versionId;
+            pendingReviewButton.textContent = 'Прайс опубликован';
+            setUploadStatus('success', 'Прайс опубликован.');
+            uploadPublishDialog.close();
         } catch (error) {
             uploadPublishMessage.textContent = 'Сеть недоступна. Прайс не опубликован.';
             uploadPublishMessage.hidden = false;
         } finally {
             reviewPublishing = false;
-            pendingReviewButton.disabled = false;
+            if (!publicationCompleted) pendingReviewButton.disabled = false;
             uploadPublishConfirm.disabled = false;
             uploadPublishCancel.disabled = false;
             uploadPublishConfirm.textContent = 'Опубликовать';
