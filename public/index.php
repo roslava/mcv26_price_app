@@ -81,8 +81,8 @@ try {
     exit;
 }
 
-$sections = $priceData['sections'];
-$priceDate = public_price_date($priceData['source']['price_date']);
+$sections = $priceData['sections'] ?? [];
+$priceDate = public_price_date($priceData['source']['price_date'] ?? null);
 $serviceCount = 0;
 foreach ($sections as $section) {
     $serviceCount += count($section['items']);
@@ -102,9 +102,8 @@ foreach ($sections as $section) {
 <body>
 <header class="public-header">
     <div class="container header-inner">
-        <a class="brand" href="/" aria-label="MCV26, прайс-лист">
-            <span class="brand-mark" aria-hidden="true">+</span>
-            <span>MCV26</span>
+        <a class="brand" href="/">
+            <img class="public-logo" src="/assets/mcv26_logo_h.png" alt="Медицинский Центр Власова">
         </a>
         <?php if ($priceDate !== null): ?>
             <p class="header-date">Прайс от <time datetime="<?= public_e($priceData['source']['price_date']) ?>"><?= public_e($priceDate) ?></time></p>
@@ -118,10 +117,17 @@ foreach ($sections as $section) {
             <p class="eyebrow">Медицинский центр</p>
             <h1>Прайс-лист</h1>
             <p class="intro">Цены носят информационный характер и могут обновляться.</p>
-            <p class="source-title"><?= public_e($priceData['source']['title']) ?></p>
+            <?php if ($priceData !== null): ?>
+                <p class="source-title"><?= public_e($priceData['source']['title']) ?></p>
+            <?php endif; ?>
         </div>
     </section>
 
+    <?php if ($priceData === null): ?>
+        <div class="container price-content">
+            <p class="empty-price-message" role="status">Прайс-лист пока не опубликован.</p>
+        </div>
+    <?php else: ?>
     <div id="price-tools" class="container price-content">
         <section class="search-panel" aria-labelledby="search-heading">
             <h2 id="search-heading" class="visually-hidden">Поиск по прайс-листу</h2>
@@ -168,9 +174,10 @@ foreach ($sections as $section) {
             <?php endforeach; ?>
         </div>
     </div>
+    <?php endif; ?>
 </main>
 
-<a class="back-to-tools" href="#price-tools">↑ К поиску</a>
+<?php if ($priceData !== null): ?><a class="back-to-tools" href="#price-tools">↑ К поиску</a><?php endif; ?>
 
 <footer class="public-footer">
     <div class="container">

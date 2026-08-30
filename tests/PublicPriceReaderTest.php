@@ -6,6 +6,7 @@ namespace Mcv26\Price\Tests;
 
 use Mcv26\Price\PublicPriceReader;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class PublicPriceReaderTest extends TestCase
 {
@@ -16,6 +17,25 @@ final class PublicPriceReaderTest extends TestCase
         if ($this->path !== null) {
             @unlink($this->path);
         }
+    }
+
+    public function testMissingCurrentJsonMeansPriceHasNotBeenPublishedYet(): void
+    {
+        $path = sys_get_temp_dir() . '/mcv26_missing_' . bin2hex(random_bytes(8)) . '.json';
+
+        self::assertFileDoesNotExist($path);
+        self::assertNull((new PublicPriceReader($path))->read());
+    }
+
+    public function testMalformedExistingCurrentJsonIsStillAnError(): void
+    {
+        $this->path = tempnam(sys_get_temp_dir(), 'mcv26_json_');
+        self::assertNotFalse($this->path);
+        file_put_contents($this->path, '{broken');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Published price JSON is malformed.');
+        (new PublicPriceReader($this->path))->read();
     }
 
     public function testProvidesExistingViewPriceWithoutPersistedFloats(): void

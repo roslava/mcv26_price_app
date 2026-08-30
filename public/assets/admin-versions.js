@@ -1,16 +1,42 @@
 (() => {
     'use strict';
 
+    const fileInput = document.querySelector('[data-file-input]');
+    const fileName = document.querySelector('[data-file-name]');
+    if (fileInput && fileName) {
+        fileInput.addEventListener('change', () => {
+            fileName.textContent = fileInput.files?.[0]?.name || 'Файл не выбран';
+        });
+    }
+
     const panel = document.querySelector('[data-version-actions]');
     if (!panel) return;
     const message = panel.querySelector('[data-version-message]');
+
+    const reviewButton = document.querySelector('[data-review-publish]');
+    if (reviewButton) {
+        reviewButton.addEventListener('click', async () => {
+            if (!window.confirm('Опубликовать новый прайс на сайте?')) return;
+            reviewButton.disabled = true;
+            try {
+                const response = await fetch('/admin/publish-version.php', {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': panel.dataset.csrfToken},
+                    body: JSON.stringify({version_id: reviewButton.dataset.versionId, expected_revision: reviewButton.dataset.revision, expected_published_version_id: reviewButton.dataset.publishedVersionId || null}),
+                });
+                const result = await response.json().catch(() => null);
+                if (!response.ok || !result?.ok) { window.alert(result?.message || 'Не удалось опубликовать прайс. Обновите страницу и попробуйте снова.'); reviewButton.disabled = false; return; }
+                window.location.reload();
+            } catch (error) { window.alert('Сеть недоступна. Прайс не опубликован.'); reviewButton.disabled = false; }
+        });
+    }
 
     panel.addEventListener('click', async (event) => {
         const button = event.target.closest('[data-version-action]');
         if (!button || button.disabled) return;
         const publish = button.dataset.versionAction === 'publish';
-        if (publish && !window.confirm('Опубликовать этот черновик? Текущая опубликованная версия будет архивирована.')) return;
-        if (!publish && !window.confirm('Создать новый черновик из этой архивной версии?')) return;
+        if (publish && !window.confirm('Опубликовать этот прайс? Текущий прайс на сайте останется в истории.')) return;
+        if (!publish && !window.confirm('Подготовить предыдущий прайс для редактирования?')) return;
 
         button.disabled = true;
         message.textContent = publish ? 'Публикация…' : 'Восстановление…';

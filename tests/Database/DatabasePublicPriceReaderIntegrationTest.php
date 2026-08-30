@@ -105,10 +105,9 @@ final class DatabasePublicPriceReaderIntegrationTest extends TestCase
         self::assertSame(47000, $this->reader->read()['sections'][0]['items'][0]['price_minor']);
     }
 
-    public function testZeroMultipleAndMalformedGraphsFailClosed(): void
+    public function testNoPublishedVersionIsAValidFreshInstallState(): void
     {
-        $this->expectException(RuntimeException::class);
-        $this->reader->read();
+        self::assertNull($this->reader->read());
     }
 
     public function testDatabaseFailurePropagatesForPublic503Boundary(): void

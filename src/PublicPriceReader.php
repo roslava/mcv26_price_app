@@ -13,11 +13,14 @@ final class PublicPriceReader
     {
     }
 
-    /** @return array<string, mixed> */
-    public function read(): array
+    /** @return array<string, mixed>|null */
+    public function read(): ?array
     {
+        if (!file_exists($this->jsonPath)) {
+            return null;
+        }
         if (!is_file($this->jsonPath) || !is_readable($this->jsonPath)) {
-            throw new RuntimeException('Published price JSON is missing or unreadable.');
+            throw new RuntimeException('Published price JSON is unreadable.');
         }
 
         $contents = file_get_contents($this->jsonPath);

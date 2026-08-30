@@ -61,17 +61,7 @@ body {
     text-decoration: none;
 }
 
-.brand-mark {
-    display: grid;
-    width: 36px;
-    height: 36px;
-    place-items: center;
-    border-radius: 8px;
-    background: var(--brand-navy);
-    color: #fff;
-    font-size: 24px;
-    font-weight: 350;
-}
+.public-logo { display: block; width: 190px; max-width: 52vw; height: auto; }
 
 .header-date {
     margin: 0;
@@ -384,6 +374,16 @@ input:focus-visible {
 .error-shell p:last-child {
     margin-bottom: 0;
     color: var(--muted);
+}
+
+.empty-price-message {
+    margin: 0;
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    font-size: 18px;
+    text-align: center;
 }
 
 @media (max-width: 680px) {

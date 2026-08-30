@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mcv26\Price\Tests\Database;
 
 use Mcv26\Price\Admin\ArchivedVersionRestorer;
+use Mcv26\Price\Admin\CurrentPublishedVersionEditorStarter;
 use Mcv26\Price\Admin\VersionPublisher;
 use Mcv26\Price\Database\DatabaseConfig;
 use Mcv26\Price\Database\DatabasePriceRepository;
@@ -63,6 +64,22 @@ final class VersionLifecycleIntegrationTest extends TestCase
         }
     }
 
+    public function testFirstPublicationDoesNotAttemptToArchiveAnything(): void
+    {
+        $draft = $this->version('Первый прайс', 100000);
+        $archiveCalled = false;
+        $result = (new VersionPublisher(
+            $this->pdo,
+            $this->repository,
+            static function () use (&$archiveCalled): void { $archiveCalled = true; }
+        ))->publish($draft, 0, null);
+
+        self::assertSame($draft, $result['published_version_id']);
+        self::assertNull($result['archived_version_id']);
+        self::assertFalse($archiveCalled);
+        self::assertSame('published', $this->versionStatus($draft));
+    }
+
     public function testStaleRevisionCannotPublish(): void
     {
         $draft = $this->version('Edited', 100000);
@@ -117,6 +134,122 @@ final class VersionLifecycleIntegrationTest extends TestCase
         $draft = $this->version('Draft', 100000);
         $this->expectException(VersionActionException::class);
         (new ArchivedVersionRestorer($this->pdo, $this->repository))->restore($draft);
+    }
+
+    public function testStartingCurrentPriceEditingClonesGraphAndIsIdempotent(): void
+    {
+        $published = $this->repository->createVersion([
+            'title' => 'Current', 'price_date' => '2026-08-29', 'original_filename' => 'current.xlsx',
+            'stored_xlsx_name' => 'stored-current.xlsx', 'source_xlsx_sha256' => str_repeat('a', 64),
+            'source_json_sha256' => str_repeat('b', 64), 'source_identity' => 'initial:' . str_repeat('b', 64),
+            'imported_at' => '2026-08-29 00:00:00.000000',
+        ]);
+        foreach (['Повтор', 'Повтор'] as $categoryPosition => $categoryName) {
+            $category = $this->repository->createCategory($published, $categoryPosition + 1, $categoryName);
+            foreach ([12500, 25000] as $servicePosition => $price) {
+                $this->repository->createService($category, [
+                    'position' => $servicePosition + 1, 'service_number' => 7, 'code' => 'DUP',
+                    'name' => 'Одинаковая услуга', 'imported_price_minor' => $price - 100,
+                    'current_price_minor' => $price,
+                ]);
+            }
+        }
+        $this->repository->publishVersion($published);
+        $before = $this->repository->loadVersion($published);
+        $starter = new CurrentPublishedVersionEditorStarter($this->pdo, $this->repository);
+
+        $first = $starter->start();
+        $second = $starter->start();
+        $draft = $this->repository->loadVersion($first['draft_version_id']);
+
+        self::assertTrue($first['created']);
+        self::assertFalse($second['created']);
+        self::assertSame($first['draft_version_id'], $second['draft_version_id']);
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM price_versions WHERE status='draft'")->fetchColumn());
+        self::assertSame($before, $this->repository->loadVersion($published));
+        self::assertSame('published', $this->versionStatus($published));
+        self::assertSame('draft', $draft['status']);
+        self::assertSame(0, (int) $draft['revision']);
+        self::assertSame($published, (int) $draft['restored_from_version_id']);
+        self::assertSame(['Повтор', 'Повтор'], array_column($draft['categories'], 'name'));
+        foreach ($draft['categories'] as $category) {
+            self::assertSame([1, 2], array_map('intval', array_column($category['services'], 'position')));
+            self::assertSame([7, 7], array_map('intval', array_column($category['services'], 'service_number')));
+            self::assertSame(['DUP', 'DUP'], array_column($category['services'], 'code'));
+            self::assertSame(['Одинаковая услуга', 'Одинаковая услуга'], array_column($category['services'], 'name'));
+            self::assertSame([12500, 25000], array_map('intval', array_column($category['services'], 'imported_price_minor')));
+            self::assertSame([12500, 25000], array_map('intval', array_column($category['services'], 'current_price_minor')));
+        }
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM price_changes')->fetchColumn());
+    }
+
+    public function testStartingCurrentPriceEditingFailsWithoutExactlyOnePublishedPrice(): void
+    {
+        $starter = new CurrentPublishedVersionEditorStarter($this->pdo, $this->repository);
+        try {
+            $starter->start();
+            self::fail('Expected missing current price rejection.');
+        } catch (VersionActionException $exception) {
+            self::assertSame('version_conflict', $exception->errorCode);
+        }
+
+        $first = $this->version('First', 10000);
+        $second = $this->version('Second', 20000);
+        $this->pdo->exec("UPDATE price_versions SET status='published' WHERE id IN ($first,$second)");
+        try {
+            $starter->start();
+            self::fail('Expected ambiguous current price rejection.');
+        } catch (VersionActionException $exception) {
+            self::assertSame('version_conflict', $exception->errorCode);
+            self::assertSame(0, (int) $this->pdo->query("SELECT COUNT(*) FROM price_versions WHERE status='draft'")->fetchColumn());
+        }
+    }
+
+    public function testConcurrentStartRequestsReuseOneEditablePrice(): void
+    {
+        if (!function_exists('pcntl_fork') || !function_exists('stream_socket_pair')) {
+            self::markTestSkipped('pcntl and socket pairs are required for the concurrency check.');
+        }
+        $published = $this->version('Current', 10000);
+        $this->repository->publishVersion($published);
+        $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($sockets);
+        $pid = pcntl_fork();
+        self::assertGreaterThanOrEqual(0, $pid);
+        if ($pid === 0) {
+            fclose($sockets[0]);
+            fread($sockets[1], 1);
+            try {
+                $pdo = PdoConnectionFactory::create(new DatabaseConfig(
+                    (string) getenv('MCV26_TEST_DB_DSN'),
+                    (string) (getenv('MCV26_TEST_DB_USER') ?: ''),
+                    (string) (getenv('MCV26_TEST_DB_PASSWORD') ?: '')
+                ));
+                $result = (new CurrentPublishedVersionEditorStarter($pdo, new DatabasePriceRepository($pdo)))->start();
+                fwrite($sockets[1], (string) $result['draft_version_id']);
+                fclose($sockets[1]);
+                exit(0);
+            } catch (\Throwable) { exit(1); }
+        }
+        fclose($sockets[1]);
+        fwrite($sockets[0], '1');
+        $parentPdo = PdoConnectionFactory::create(new DatabaseConfig(
+            (string) getenv('MCV26_TEST_DB_DSN'),
+            (string) (getenv('MCV26_TEST_DB_USER') ?: ''),
+            (string) (getenv('MCV26_TEST_DB_PASSWORD') ?: '')
+        ));
+        $parent = (new CurrentPublishedVersionEditorStarter(
+            $parentPdo,
+            new DatabasePriceRepository($parentPdo)
+        ))->start();
+        $childId = (int) stream_get_contents($sockets[0]);
+        fclose($sockets[0]);
+        pcntl_waitpid($pid, $status);
+
+        self::assertTrue(pcntl_wifexited($status));
+        self::assertSame(0, pcntl_wexitstatus($status));
+        self::assertSame($parent['draft_version_id'], $childId);
+        self::assertSame(1, (int) $parentPdo->query("SELECT COUNT(*) FROM price_versions WHERE status='draft'")->fetchColumn());
     }
 
     private function version(string $title, int $price): int

@@ -68,7 +68,7 @@ final class VersionPublisher
                     throw VersionActionException::conflict('Опубликованная версия изменилась.');
                 }
             }
-            if (is_callable($this->afterArchive)) {
+            if ($currentPublishedId !== null && is_callable($this->afterArchive)) {
                 ($this->afterArchive)();
             }
             $publish = $this->pdo->prepare(

@@ -18,7 +18,7 @@ final class AdminUploadImporter
     {
     }
 
-    /** @return array{version_id: int, created: bool, status: string, categories: int, services: int, stored_xlsx_name: string} */
+    /** @return array{version_id: int, created: bool, status: string, outcome: string, categories: int, services: int, stored_xlsx_name: string} */
     public function import(string $sourcePath, string $originalFilename): array
     {
         $validator = new UploadValidator();

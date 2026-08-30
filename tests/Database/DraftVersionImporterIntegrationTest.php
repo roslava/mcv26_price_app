@@ -9,9 +9,9 @@ use Mcv26\Price\Database\DatabasePriceRepository;
 use Mcv26\Price\Database\MigrationRunner;
 use Mcv26\Price\Database\PdoConnectionFactory;
 use Mcv26\Price\Admin\AdminUploadImporter;
+use Mcv26\Price\Admin\VersionPublisher;
 use Mcv26\Price\Exception\ImportException;
 use Mcv26\Price\Import\DraftVersionImporter;
-use Mcv26\Price\Migration\CurrentPublicationMigrator;
 use Mcv26\Price\PriceImporter;
 use Mcv26\Price\Storage\OriginalXlsxStorage;
 use Mcv26\Price\Tests\Support\XlsxFixture;
@@ -27,7 +27,6 @@ final class DraftVersionImporterIntegrationTest extends TestCase
     private PDO $pdo;
     private DatabasePriceRepository $repository;
     private DraftVersionImporter $draftImporter;
-    private CurrentPublicationMigrator $currentMigrator;
     private ?string $storageRoot = null;
     private string $xlsxPath;
     private string $jsonPath;
@@ -66,12 +65,6 @@ final class DraftVersionImporterIntegrationTest extends TestCase
             $importer,
             $storage
         );
-        $this->currentMigrator = new CurrentPublicationMigrator(
-            $this->pdo,
-            $this->repository,
-            $importer,
-            $storage
-        );
         $this->xlsxPath = dirname(__DIR__, 2) . '/storage/uploads/current.xlsx';
         $this->jsonPath = dirname(__DIR__, 2) . '/storage/data/price.json';
     }
@@ -93,8 +86,8 @@ final class DraftVersionImporterIntegrationTest extends TestCase
 
     public function testValidRealXlsxCreatesOrderedDraftWithoutChangingPublishedVersion(): void
     {
-        $published = $this->currentMigrator->migrate($this->xlsxPath, $this->jsonPath);
-        $before = $this->repository->loadVersion($published['version_id']);
+        $publishedId = $this->createPublishedPlaceholder();
+        $before = $this->repository->loadVersion($publishedId);
 
         $result = $this->draftImporter->import($this->xlsxPath, 'clinic-upload.xlsx');
 
@@ -102,7 +95,7 @@ final class DraftVersionImporterIntegrationTest extends TestCase
         self::assertSame('draft', $result['status']);
         self::assertSame(22, $result['categories']);
         self::assertSame(271, $result['services']);
-        self::assertNotSame($published['version_id'], $result['version_id']);
+        self::assertNotSame($publishedId, $result['version_id']);
         $draft = $this->repository->loadVersion($result['version_id']);
         self::assertSame('clinic-upload.xlsx', $draft['original_filename']);
         self::assertNotSame('clinic-upload.xlsx', $draft['stored_xlsx_name']);
@@ -125,7 +118,7 @@ final class DraftVersionImporterIntegrationTest extends TestCase
             . 'WHERE c.price_version_id=' . (int) $result['version_id'] . ' AND s.service_number=269'
         )->fetchColumn());
         self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM price_changes')->fetchColumn());
-        self::assertSame($before, $this->repository->loadVersion($published['version_id']));
+        self::assertSame($before, $this->repository->loadVersion($publishedId));
         self::assertSame(1, (int) $this->pdo->query(
             "SELECT COUNT(*) FROM price_versions WHERE status='published'"
         )->fetchColumn());
@@ -133,7 +126,7 @@ final class DraftVersionImporterIntegrationTest extends TestCase
 
     public function testAdminUploadCompositionCreatesDraftWithoutChangingPublication(): void
     {
-        $published = $this->currentMigrator->migrate($this->xlsxPath, $this->jsonPath);
+        $publishedId = $this->createPublishedPlaceholder();
         $beforeXlsx = hash_file('sha256', $this->xlsxPath);
         $beforeJson = hash_file('sha256', $this->jsonPath);
 
@@ -142,9 +135,9 @@ final class DraftVersionImporterIntegrationTest extends TestCase
 
         self::assertTrue($result['created']);
         self::assertSame('draft', $result['status']);
-        self::assertNotSame($published['version_id'], $result['version_id']);
-        self::assertSame($published['version_id'], $this->repository->publishedVersionId());
-        self::assertSame('published', $this->repository->loadVersion($published['version_id'])['status']);
+        self::assertNotSame($publishedId, $result['version_id']);
+        self::assertSame($publishedId, $this->repository->publishedVersionId());
+        self::assertSame('published', $this->repository->loadVersion($publishedId)['status']);
         self::assertSame('draft', $this->repository->loadVersion($result['version_id'])['status']);
         self::assertSame($beforeXlsx, hash_file('sha256', $this->xlsxPath));
         self::assertSame($beforeJson, hash_file('sha256', $this->jsonPath));
@@ -152,7 +145,7 @@ final class DraftVersionImporterIntegrationTest extends TestCase
 
     public function testExactDuplicateReturnsExistingDraftWithoutNewGraphOrFile(): void
     {
-        $published = $this->currentMigrator->migrate($this->xlsxPath, $this->jsonPath);
+        $publishedId = $this->createPublishedPlaceholder();
         $first = $this->draftImporter->import($this->xlsxPath, 'first-name.xlsx');
         $fileCount = count(glob($this->storageRoot . '/originals/*.xlsx') ?: []);
         $second = $this->draftImporter->import($this->xlsxPath, 'second-name.xlsx');
@@ -160,11 +153,131 @@ final class DraftVersionImporterIntegrationTest extends TestCase
         self::assertTrue($first['created']);
         self::assertFalse($second['created']);
         self::assertSame($first['version_id'], $second['version_id']);
-        self::assertNotSame($published['version_id'], $second['version_id']);
+        self::assertSame('existing_draft', $second['outcome']);
+        self::assertNotSame($publishedId, $second['version_id']);
         self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM price_versions')->fetchColumn());
-        self::assertSame(44, (int) $this->pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn());
-        self::assertSame(542, (int) $this->pdo->query('SELECT COUNT(*) FROM services')->fetchColumn());
+        self::assertSame(23, (int) $this->pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn());
+        self::assertSame(272, (int) $this->pdo->query('SELECT COUNT(*) FROM services')->fetchColumn());
         self::assertSame($fileCount, count(glob($this->storageRoot . '/originals/*.xlsx') ?: []));
+    }
+
+    public function testExactDuplicateReusesManuallyEditedDraftWithoutOverwritingIt(): void
+    {
+        $this->createPublishedPlaceholder();
+        $first = $this->draftImporter->import($this->xlsxPath, 'first.xlsx');
+        $serviceId = (int) $this->repository->loadVersion($first['version_id'])['categories'][0]['services'][0]['id'];
+        $this->pdo->exec('UPDATE services SET current_price_minor=999999 WHERE id=' . $serviceId);
+
+        $second = $this->draftImporter->import($this->xlsxPath, 'same-content.xlsx');
+
+        self::assertSame('existing_draft', $second['outcome']);
+        self::assertSame($first['version_id'], $second['version_id']);
+        self::assertSame(999999, (int) $this->pdo->query(
+            'SELECT current_price_minor FROM services WHERE id=' . $serviceId
+        )->fetchColumn());
+    }
+
+    public function testReuploadOfIdenticalCurrentPublishedPriceReturnsNoChange(): void
+    {
+        $initial = $this->createPublishedPlaceholder();
+        $draft = $this->draftImporter->import($this->xlsxPath, 'first.xlsx');
+        (new VersionPublisher($this->pdo, $this->repository))->publish($draft['version_id'], 0, $initial);
+        $before = $this->repository->loadVersion($draft['version_id']);
+        $fileCount = count(glob($this->storageRoot . '/originals/*.xlsx') ?: []);
+
+        $result = $this->draftImporter->import($this->xlsxPath, 'again.xlsx');
+
+        self::assertSame('unchanged_published', $result['outcome']);
+        self::assertFalse($result['created']);
+        self::assertSame($draft['version_id'], $result['version_id']);
+        self::assertSame($before, $this->repository->loadVersion($draft['version_id']));
+        self::assertSame(2, (int) $this->pdo->query('SELECT COUNT(*) FROM price_versions')->fetchColumn());
+        self::assertSame($fileCount, count(glob($this->storageRoot . '/originals/*.xlsx') ?: []));
+    }
+
+    public function testArchivedOnlyIdenticalUploadCreatesFreshDraftWithoutChangingHistory(): void
+    {
+        $initial = $this->createPublishedPlaceholder();
+        $first = $this->draftImporter->import($this->xlsxPath, 'first.xlsx');
+        (new VersionPublisher($this->pdo, $this->repository))->publish($first['version_id'], 0, $initial);
+        $replacement = $this->repository->createVersion([
+            'title' => 'Replacement', 'price_date' => '2026-08-29', 'original_filename' => 'replacement.xlsx',
+            'stored_xlsx_name' => 'replacement.xlsx', 'imported_at' => '2026-08-29 00:00:00.000000',
+        ]);
+        $category = $this->repository->createCategory($replacement, 1, 'Replacement');
+        $this->repository->createService($category, ['position'=>1,'service_number'=>1,'code'=>'R','name'=>'R','imported_price_minor'=>1,'current_price_minor'=>1]);
+        (new VersionPublisher($this->pdo, $this->repository))->publish($replacement, 0, $first['version_id']);
+        $archivedBefore = $this->repository->loadVersion($first['version_id']);
+
+        $result = $this->draftImporter->import($this->xlsxPath, 'new-action.xlsx');
+
+        self::assertTrue($result['created']);
+        self::assertSame('created', $result['outcome']);
+        self::assertNotSame($first['version_id'], $result['version_id']);
+        self::assertSame($archivedBefore, $this->repository->loadVersion($first['version_id']));
+        $newDraft = $this->repository->loadVersion($result['version_id']);
+        self::assertMatchesRegularExpression('/^upload:[a-f0-9]{40}:[a-f0-9]{32}$/D', $newDraft['source_identity']);
+        self::assertNotSame($archivedBefore['source_identity'], $newDraft['source_identity']);
+        self::assertSame($replacement, $this->repository->publishedVersionId());
+        self::assertSame(1, (int) $this->pdo->query("SELECT COUNT(*) FROM price_versions WHERE status='draft'")->fetchColumn());
+        self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM price_changes')->fetchColumn());
+    }
+
+    public function testSameFilenameWithDifferentContentCreatesIndependentDrafts(): void
+    {
+        $this->createPublishedPlaceholder();
+        $firstPath = XlsxFixture::create([[1, 'A', 'First', 10.00]]);
+        $secondPath = XlsxFixture::create([[1, 'A', 'First', 11.00]]);
+        $this->temporaryFiles[] = $firstPath;
+        $this->temporaryFiles[] = $secondPath;
+
+        $first = $this->draftImporter->import($firstPath, 'same-name.xlsx');
+        $second = $this->draftImporter->import($secondPath, 'same-name.xlsx');
+
+        self::assertTrue($first['created']);
+        self::assertTrue($second['created']);
+        self::assertNotSame($first['version_id'], $second['version_id']);
+        self::assertNotSame(
+            $this->repository->loadVersion($first['version_id'])['source_xlsx_sha256'],
+            $this->repository->loadVersion($second['version_id'])['source_xlsx_sha256']
+        );
+    }
+
+    public function testConcurrentIdenticalUploadsCreateOneDraft(): void
+    {
+        if (!function_exists('pcntl_fork') || !function_exists('stream_socket_pair')) {
+            self::markTestSkipped('pcntl and socket pairs are required for the concurrency check.');
+        }
+        $published = $this->createPublishedPlaceholder();
+        $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($sockets);
+        $pid = pcntl_fork();
+        self::assertGreaterThanOrEqual(0, $pid);
+        if ($pid === 0) {
+            fclose($sockets[0]);
+            fread($sockets[1], 1);
+            try {
+                $pdo = $this->newConnection();
+                $result = $this->newDraftImporter($pdo)->import($this->xlsxPath, 'child.xlsx');
+                fwrite($sockets[1], (string) $result['version_id']);
+                fclose($sockets[1]);
+                exit(0);
+            } catch (\Throwable) { exit(1); }
+        }
+        fclose($sockets[1]);
+        fwrite($sockets[0], '1');
+        $parentPdo = $this->newConnection();
+        $parent = $this->newDraftImporter($parentPdo)->import($this->xlsxPath, 'parent.xlsx');
+        $childId = (int) stream_get_contents($sockets[0]);
+        fclose($sockets[0]);
+        pcntl_waitpid($pid, $status);
+
+        self::assertTrue(pcntl_wifexited($status));
+        self::assertSame(0, pcntl_wexitstatus($status));
+        self::assertSame($parent['version_id'], $childId);
+        self::assertSame(1, (int) $parentPdo->query("SELECT COUNT(*) FROM price_versions WHERE status='draft'")->fetchColumn());
+        self::assertSame($published, (int) $parentPdo->query("SELECT id FROM price_versions WHERE status='published'")->fetchColumn());
+        self::assertSame(1, count(glob($this->storageRoot . '/originals/*.xlsx') ?: []));
     }
 
     public function testInvalidWorkbookCreatesNothing(): void
@@ -209,5 +322,41 @@ final class DraftVersionImporterIntegrationTest extends TestCase
             self::assertSame(0, (int) $this->pdo->query('SELECT COUNT(*) FROM services')->fetchColumn());
             self::assertCount(0, glob($this->storageRoot . '/originals/*.xlsx') ?: []);
         }
+    }
+
+    private function createPublishedPlaceholder(): int
+    {
+        $id = $this->repository->createVersion([
+            'title' => 'Initial', 'price_date' => '2026-08-29', 'original_filename' => 'initial.xlsx',
+            'stored_xlsx_name' => 'initial.xlsx', 'imported_at' => '2026-08-29 00:00:00.000000',
+        ]);
+        $category = $this->repository->createCategory($id, 1, 'Initial');
+        $this->repository->createService($category, [
+            'position' => 1, 'service_number' => 1, 'code' => 'INITIAL', 'name' => 'Initial',
+            'imported_price_minor' => 1, 'current_price_minor' => 1,
+        ]);
+        $this->repository->publishVersion($id);
+        return $id;
+    }
+
+    private function newConnection(): PDO
+    {
+        return PdoConnectionFactory::create(new DatabaseConfig(
+            (string) getenv('MCV26_TEST_DB_DSN'),
+            (string) (getenv('MCV26_TEST_DB_USER') ?: ''),
+            (string) (getenv('MCV26_TEST_DB_PASSWORD') ?: '')
+        ));
+    }
+
+    private function newDraftImporter(PDO $pdo): DraftVersionImporter
+    {
+        $validator = new UploadValidator();
+        return new DraftVersionImporter(
+            $pdo,
+            new DatabasePriceRepository($pdo),
+            $validator,
+            new PriceImporter($validator),
+            new OriginalXlsxStorage($this->storageRoot . '/originals', $this->storageRoot . '/public', $validator)
+        );
     }
 }

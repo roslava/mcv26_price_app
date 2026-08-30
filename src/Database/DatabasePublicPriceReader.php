@@ -15,12 +15,15 @@ final class DatabasePublicPriceReader
     {
     }
 
-    /** @return array<string, mixed> */
-    public function read(): array
+    /** @return array<string, mixed>|null */
+    public function read(): ?array
     {
         $published = $this->pdo->query(
             "SELECT id, title, price_date FROM price_versions WHERE status = 'published' ORDER BY id"
         )->fetchAll();
+        if ($published === []) {
+            return null;
+        }
         if (count($published) !== 1) {
             throw new RuntimeException('Expected exactly one published price version.');
         }

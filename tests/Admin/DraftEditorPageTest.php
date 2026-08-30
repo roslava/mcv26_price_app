@@ -9,6 +9,16 @@ use PHPUnit\Framework\TestCase;
 
 final class DraftEditorPageTest extends TestCase
 {
+    public function testTableHeaderSticksToTableScrollportWithoutRowOverlap(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin.css');
+        self::assertMatchesRegularExpression(
+            '/\.draft-table thead th\s*\{[^}]*position:\s*sticky;[^}]*z-index:\s*5;[^}]*top:\s*0;/s',
+            $css
+        );
+        self::assertStringNotContainsString('top: 118px', $css);
+    }
+
     public function testFormatsMoneyFromIntegerMinorUnits(): void
     {
         self::assertSame("370\u{00A0}₽", DraftEditorPage::money(37000));

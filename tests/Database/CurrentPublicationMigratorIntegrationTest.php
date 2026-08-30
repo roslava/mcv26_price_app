@@ -25,7 +25,7 @@ final class CurrentPublicationMigratorIntegrationTest extends TestCase
     private CurrentPublicationMigrator $migrator;
     private string $xlsxPath;
     private string $jsonPath;
-    private string $storageRoot;
+    private ?string $storageRoot = null;
     /** @var list<string> */
     private array $temporaryFiles = [];
 
@@ -65,6 +65,9 @@ final class CurrentPublicationMigratorIntegrationTest extends TestCase
     {
         foreach ($this->temporaryFiles as $file) {
             @unlink($file);
+        }
+        if ($this->storageRoot === null) {
+            return;
         }
         foreach (glob($this->storageRoot . '/originals/*') ?: [] as $file) {
             unlink($file);

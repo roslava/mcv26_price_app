@@ -27,6 +27,9 @@ final class CurrentPublicationMigrator
     {
         $xlsx = $this->importer->import($xlsxPath, basename($xlsxPath));
         $json = (new PublicPriceReader($jsonPath))->read();
+        if ($json === null) {
+            throw new RuntimeException('Published price JSON does not exist.');
+        }
         $this->assertPublicationsMatch($xlsx, $json);
 
         $xlsxHash = hash_file('sha256', $xlsxPath);

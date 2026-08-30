@@ -42,7 +42,6 @@ body {
     margin-bottom: 28px;
 }
 
-.site-header strong,
 .site-header span {
     display: block;
 }
@@ -52,17 +51,7 @@ body {
     font-size: 14px;
 }
 
-.brand-mark {
-    display: grid !important;
-    width: 44px;
-    height: 44px;
-    place-items: center;
-    border-radius: 12px;
-    background: var(--primary);
-    color: #fff !important;
-    font-size: 28px !important;
-    font-weight: 300;
-}
+.site-logo { width: 200px; max-width: 58vw; height: auto; }
 
 h1,
 h2,
@@ -124,6 +113,37 @@ h2 {
     gap: 24px;
     margin-bottom: 22px;
 }
+.toolbar-links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toolbar-links form { margin: 0; }
+.reassurance { padding: 12px 14px; border-left: 4px solid var(--primary); background: #eef8f8; font-weight: 650; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 22px 0 0; padding-left: 22px; }
+.steps li { padding-left: 6px; }
+.steps span, .change-cards span, .change-cards small, .change-list span { display: block; color: var(--muted); }
+.review-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.admin-main-toolbar { align-items: center; margin-bottom: 18px; }
+.admin-main-toolbar h1 { margin-bottom: 0; }
+.admin-main-toolbar form { margin: 0; }
+.admin-main-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 24px; align-items: start; }
+.primary-actions { min-width: 0; }
+.primary-action-card { padding: 30px; }
+.primary-action-card h2 { font-size: 23px; }
+.primary-action-card > p:not(.reassurance) { color: var(--muted); }
+.primary-action-card .button-link { min-width: 190px; }
+.primary-action-card .form-stack button { justify-self: start; min-width: 190px; }
+.primary-action-card .reassurance { margin: 18px 0 0; }
+.upload-review { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--border); }
+.secondary-sidebar { padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: #f5f8f9; }
+.secondary-sidebar > h2 { margin-bottom: 12px; color: var(--muted); font-size: 16px; }
+.secondary-sidebar details { border-top: 1px solid var(--border); }
+.secondary-sidebar details:last-child { border-bottom: 1px solid var(--border); }
+.secondary-sidebar summary { padding: 15px 2px; font-weight: 700; cursor: pointer; }
+.secondary-sidebar summary:focus-visible { outline: 3px solid rgb(8 127 140 / 25%); outline-offset: 2px; }
+.details-content { padding: 0 2px 16px; }
+.sidebar-stats { display: grid; gap: 12px; margin: 0 0 16px; }
+.secondary-sidebar .version-row { align-items: stretch; flex-direction: column; }
+.secondary-sidebar .version-actions { align-items: stretch; flex-direction: column; }
+.secondary-sidebar .version-actions > * { width: 100%; }
+.download-list { display: grid; gap: 8px; }
 
 .form-stack {
     display: grid;
@@ -150,6 +170,26 @@ input[type="file"] {
     background: #fff;
     color: var(--text);
     font: inherit;
+}
+
+.visually-hidden-file {
+    position: absolute;
+    width: 1px !important;
+    height: 1px;
+    padding: 0 !important;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0 !important;
+}
+
+.file-picker { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.file-picker-button { margin: 0; }
+.file-picker-name { min-width: 0; overflow-wrap: anywhere; color: var(--muted); }
+.visually-hidden-file:focus-visible + .file-picker-button {
+    outline: 3px solid rgb(8 127 140 / 25%);
+    outline-offset: 2px;
 }
 
 input:focus-visible,
@@ -360,7 +400,7 @@ dd {
 .draft-table thead th {
     position: sticky;
     z-index: 5;
-    top: 118px;
+    top: 0;
     background: #e9f1f3;
     white-space: nowrap;
 }
@@ -440,6 +480,8 @@ dd {
         margin-top: 16px;
     }
 
+    .toolbar-links { justify-content: flex-start; }
+
     .card,
     .notice {
         padding: 18px;
@@ -449,6 +491,16 @@ dd {
     .result-grid {
         grid-template-columns: 1fr;
     }
+
+    .steps { grid-template-columns: 1fr; }
+
+    .primary-action-card { padding: 22px; }
+    .site-logo { width: 160px; }
+    .site-header > span { display: none; }
+}
+
+@media (max-width: 980px) {
+    .admin-main-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1100px) {
