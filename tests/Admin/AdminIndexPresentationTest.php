@@ -22,7 +22,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('name="csrf_token"', $primary);
         self::assertStringContainsString('Загрузить новый прайс', $primary);
         self::assertStringContainsString('Загрузить новый Excel-файл с прайс-листом.', $primary);
-        self::assertStringContainsString('Проверить файл', $primary);
+        self::assertStringNotContainsString('>Проверить файл</button>', $primary);
         self::assertStringContainsString("=== 'draft'", $source);
     }
 
@@ -30,7 +30,7 @@ final class AdminIndexPresentationTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
         $selection = $this->between($source, '$review = null;', "function admin_human_date");
-        $editCard = $this->between($source, '<section class="card primary-action-card" data-primary-edit>', '</section>');
+        $editCard = $this->between($source, '<section class="card primary-action-card upload-accordion" data-primary-edit', '</section>');
 
         self::assertStringContainsString("$" . "repository->loadVersion((int) $" . "flash['version_id'])", $selection);
         self::assertStringContainsString("($" . "newVersion['status'] ?? null) === 'draft'", $selection);
@@ -41,11 +41,25 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringNotContainsString('restore-version.php', $selection);
     }
 
+    public function testEditExistingPriceIsACollapsedAccessibleAccordion(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-versions.js');
+        $editCard = $this->between($source, '<section class="card primary-action-card upload-accordion" data-primary-edit', '</section>');
+
+        self::assertStringContainsString('aria-expanded="false"', $editCard);
+        self::assertStringContainsString('aria-controls="edit-accordion-content"', $editCard);
+        self::assertStringContainsString('id="edit-accordion-content"', $editCard);
+        self::assertStringContainsString('data-edit-accordion-content hidden', $editCard);
+        self::assertStringContainsString("editToggle.setAttribute('aria-expanded', String(expanded))", $script);
+        self::assertStringContainsString('editContent.hidden = !expanded;', $script);
+    }
+
     public function testPrimaryAreaOmitsCurrentMetadataAndDoesNotCreateOrPublishOnEdit(): void
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
         $primary = $this->between($source, '<main class="primary-actions">', '</main>');
-        $editCard = $this->between($primary, '<section class="card primary-action-card" data-primary-edit>', '</section>');
+        $editCard = $this->between($primary, '<section class="card primary-action-card upload-accordion" data-primary-edit', '</section>');
 
         self::assertStringNotContainsString('Сейчас на сайте</h2>', $editCard);
         self::assertStringNotContainsString('<dt>', $editCard);
@@ -55,7 +69,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringNotContainsString('<ol class="steps">', $primary);
         self::assertStringContainsString('data-review-publish', $source);
         self::assertStringContainsString('data-version-action="publish"', $source);
-        self::assertStringContainsString('На сайте ничего не изменится, пока вы не нажмёте «Опубликовать».', $primary);
+        self::assertStringNotContainsString('На сайте ничего не изменится, пока вы не нажмёте «Опубликовать».', $primary);
     }
 
     public function testSecondaryInformationIsInCollapsedNativeDisclosures(): void
@@ -129,6 +143,37 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('uploadContent.hidden = !expanded;', $script);
     }
 
+    public function testFileSelectionAutomaticallyRunsServerCheckAndRejectsStaleResponses(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-versions.js');
+
+        self::assertStringContainsString('data-upload-form', $source);
+        self::assertStringContainsString('data-upload-status', $source);
+        self::assertStringContainsString('data-upload-spinner', $source);
+        self::assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $script);
+        self::assertStringContainsString("fileInput.addEventListener('change', async () =>", $script);
+        self::assertStringContainsString("setUploadStatus('checking', 'Проверяем файл…')", $script);
+        self::assertStringContainsString('uploadController?.abort();', $script);
+        self::assertStringContainsString('if (request !== uploadRequest) return;', $script);
+        self::assertStringContainsString("'Файл проверен, ошибок не найдено.'", $source);
+        self::assertStringContainsString('Опупликовать загруженный прайс на сайте', $source);
+        self::assertStringNotContainsString('data-upload-publish-placeholder', $source);
+        self::assertStringNotContainsString('На сайте ничего не изменится, пока вы не нажмёте «Опубликовать».', $source);
+        self::assertStringNotContainsString('>Проверить файл</button>', $source);
+    }
+
+    public function testAjaxCheckUsesExistingUploadBackendAndReturnsPublishDataOnlyAfterSuccess(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+
+        self::assertSame(1, substr_count($source, 'new AdminUploadImporter('));
+        self::assertStringContainsString("$" . "isAjaxUpload = $" . "method === 'POST'", $source);
+        self::assertStringContainsString("if ($" . "isAjaxUpload)", $source);
+        self::assertStringContainsString("'review' => $" . "reviewData", $source);
+        self::assertStringContainsString("'expected_published_version_id' => $" . "publishedId", $source);
+    }
+
     public function testAdminHeaderUsesLocalClientLogo(): void
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/src/admin_bootstrap.php');
@@ -138,6 +183,37 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringNotContainsString('class="brand-mark"', $source);
     }
 
+    public function testLogoutIsRenderedInTheBrandHeader(): void
+    {
+        $bootstrap = (string) file_get_contents(dirname(__DIR__, 2) . '/src/admin_bootstrap.php');
+        $index = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+        $header = $this->between($bootstrap, '<header class="site-header">', '</header>');
+
+        self::assertStringContainsString('class="site-header-brand"', $header);
+        self::assertStringContainsString('Управление прайс-листом', $header);
+        self::assertStringContainsString('class="site-header-logout"', $header);
+        self::assertStringContainsString('action="/admin/logout.php"', $header);
+        self::assertStringContainsString('>Выйти</button>', $header);
+        self::assertStringContainsString("admin_page_start('Прайс-лист', '', $" . "adminSession->csrfToken())", $index);
+        self::assertSame(1, substr_count($index, '>Выйти</button>') + substr_count($header, '>Выйти</button>'));
+    }
+
+    public function testBrandHeaderUsesRequestedBlueBackground(): void
+    {
+        $styles = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin.css');
+
+        self::assertMatchesRegularExpression('/\.site-header\s*\{[^}]*background:\s*#004e89;/s', $styles);
+        self::assertMatchesRegularExpression('/\.site-header-brand span\s*\{[^}]*color:\s*#fff;/s', $styles);
+    }
+
+    public function testPageDoesNotRepeatPriceListHeadingBelowBrandHeader(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+
+        self::assertStringNotContainsString('<h1>Прайс-лист</h1>', $source);
+        self::assertStringNotContainsString('admin-main-toolbar', $source);
+    }
+
     public function testFreshInstallShowsEmptyStateAndKeepsUploadAvailable(): void
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
@@ -145,7 +221,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('Прайс-лист ещё не загружен.', $source);
         self::assertStringContainsString('if ($publishedData !== null)', $source);
         self::assertStringContainsString('name="price_file"', $source);
-        self::assertStringContainsString('Проверить файл', $source);
+        self::assertStringContainsString('data-upload-form', $source);
     }
 
     private function between(string $source, string $start, string $end): string

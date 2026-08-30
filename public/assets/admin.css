@@ -38,18 +38,22 @@ body {
 .site-header {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    gap: 24px;
     margin-bottom: 28px;
+    padding: 16px 20px;
+    border-radius: 14px;
+    background: #004e89;
 }
 
-.site-header span {
-    display: block;
-}
-
-.site-header span {
-    color: var(--muted);
+.site-header-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.site-header-brand span {
+    color: #fff;
     font-size: 14px;
 }
+.site-header-logout { flex: 0 0 auto; margin: 0; }
+.site-header-logout .button-secondary { border-color: rgb(255 255 255 / 70%); background: #fff; color: #004e89; }
+.site-header-logout .button-secondary:hover { background: #eaf3fa; }
 
 .site-logo { width: 200px; max-width: 58vw; height: auto; }
 
@@ -165,6 +169,23 @@ h2 {
 .upload-accordion-content { padding: 0 30px 30px; border-top: 1px solid var(--border); }
 .upload-accordion-content > p:first-child { margin-top: 24px; color: var(--muted); }
 .upload-accordion-content[hidden] { display: none; }
+.upload-check-status { display: flex; align-items: center; gap: 9px; margin: 2px 0 0; font-size: 14px; }
+.upload-check-status[hidden] { display: none; }
+.upload-check-status.is-checking { color: var(--muted); }
+.upload-check-status.is-success { color: #087339; font-weight: 700; }
+.upload-check-status.is-error { color: #a42626; font-weight: 700; }
+.upload-spinner {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    border: 2px solid rgb(8 127 140 / 22%);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: upload-spinner 700ms linear infinite;
+}
+.upload-spinner[hidden] { display: none; }
+@keyframes upload-spinner { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .upload-spinner { animation-duration: 1400ms; } }
 .upload-review { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--border); }
 .secondary-sidebar { padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: #f5f8f9; }
 .secondary-sidebar > h2 { margin-bottom: 12px; color: var(--muted); font-size: 16px; }

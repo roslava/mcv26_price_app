@@ -12,11 +12,103 @@
         });
     }
 
-    const fileInput = document.querySelector('[data-file-input]');
-    const fileName = document.querySelector('[data-file-name]');
-    if (fileInput && fileName) {
-        fileInput.addEventListener('change', () => {
-            fileName.textContent = fileInput.files?.[0]?.name || 'Файл не выбран';
+    const editAccordion = document.querySelector('[data-edit-accordion]');
+    const editToggle = editAccordion?.querySelector('[data-edit-accordion-toggle]');
+    const editContent = editAccordion?.querySelector('[data-edit-accordion-content]');
+    if (editToggle && editContent) {
+        editToggle.addEventListener('click', () => {
+            const expanded = editToggle.getAttribute('aria-expanded') !== 'true';
+            editToggle.setAttribute('aria-expanded', String(expanded));
+            editContent.hidden = !expanded;
+        });
+    }
+
+    const uploadForm = document.querySelector('[data-upload-form]');
+    const fileInput = uploadForm?.querySelector('[data-file-input]');
+    const fileName = uploadForm?.querySelector('[data-file-name]');
+    const uploadStatus = uploadForm?.querySelector('[data-upload-status]');
+    const uploadStatusText = uploadForm?.querySelector('[data-upload-status-text]');
+    const uploadSpinner = uploadForm?.querySelector('[data-upload-spinner]');
+    const uploadResult = document.querySelector('[data-upload-result]');
+    let uploadRequest = 0;
+    let uploadController = null;
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+    })[character]);
+    const humanDate = (value) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return 'не указана';
+        const [year, month, day] = value.split('-').map(Number);
+        return new Intl.DateTimeFormat('ru-RU', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'})
+            .format(new Date(Date.UTC(year, month - 1, day)));
+    };
+    const setUploadStatus = (state, message) => {
+        uploadStatus.hidden = false;
+        uploadStatus.className = `upload-check-status is-${state}`;
+        uploadStatusText.textContent = message;
+        uploadSpinner.hidden = state !== 'checking';
+    };
+    const renderReview = (review) => {
+        if (!review) {
+            uploadResult.replaceChildren();
+            return;
+        }
+        const currentText = review.expected_published_version_id
+            ? `Прайс ещё не опубликован. На сайте продолжает действовать прайс от ${escapeHtml(humanDate(review.current_price_date))}.`
+            : 'Прайс ещё не опубликован. Сейчас на сайте нет прайс-листа.';
+        uploadResult.innerHTML = `<div class="upload-review"><h3>Новый прайс готов к публикации</h3>
+            <div class="notice success"><strong>Прайс можно опубликовать</strong><br>Структура файла корректна. Ошибок не найдено.</div>
+            <dl class="status-grid"><div><dt>Файл</dt><dd>${escapeHtml(review.original_filename)}</dd></div>
+            <div><dt>Дата прайса</dt><dd>${escapeHtml(humanDate(review.price_date))}</dd></div>
+            <div><dt>Разделов</dt><dd>${escapeHtml(review.sections)}</dd></div>
+            <div><dt>Услуг в новом прайсе</dt><dd>${escapeHtml(review.items)}</dd></div>
+            <div><dt>Сейчас на сайте</dt><dd>${escapeHtml(review.current_items)} услуг</dd></div></dl>
+            <p class="reassurance">${currentText}</p><div class="review-actions">
+            <button type="button" data-review-publish data-version-id="${escapeHtml(review.version_id)}" data-revision="${escapeHtml(review.revision)}" data-published-version-id="${escapeHtml(review.expected_published_version_id || '')}">Опупликовать загруженный прайс на сайте</button>
+            <a class="button-link button-secondary" href="/admin/">Отменить и вернуться</a></div></div>`;
+    };
+
+    if (uploadForm && fileInput && fileName && uploadStatus && uploadStatusText && uploadSpinner && uploadResult) {
+        uploadForm.addEventListener('submit', (event) => event.preventDefault());
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files?.[0];
+            fileName.textContent = file?.name || 'Файл не выбран';
+            uploadController?.abort();
+            const request = ++uploadRequest;
+            uploadResult.replaceChildren();
+            if (!file) {
+                uploadStatus.hidden = true;
+                return;
+            }
+            uploadToggle?.setAttribute('aria-expanded', 'true');
+            if (uploadContent) uploadContent.hidden = false;
+            setUploadStatus('checking', 'Проверяем файл…');
+            uploadController = new AbortController();
+            try {
+                const response = await fetch(uploadForm.action, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                    body: new FormData(uploadForm),
+                    signal: uploadController.signal,
+                });
+                const result = await response.json().catch(() => null);
+                if (request !== uploadRequest) return;
+                if (!response.ok || !result?.ok) {
+                    setUploadStatus('error', result?.message || 'Не удалось проверить файл. Попробуйте ещё раз.');
+                    uploadResult.replaceChildren();
+                    return;
+                }
+                setUploadStatus('success', result.review
+                    ? (result.status_message || 'Файл проверен, ошибок не найдено.')
+                    : (result.message || 'Файл проверен, публикация не требуется.'));
+                renderReview(result.review);
+            } catch (error) {
+                if (error.name !== 'AbortError' && request === uploadRequest) {
+                    setUploadStatus('error', 'Сеть недоступна. Не удалось проверить файл.');
+                    uploadResult.replaceChildren();
+                }
+            }
         });
     }
 
@@ -24,9 +116,9 @@
     if (!panel) return;
     const message = panel.querySelector('[data-version-message]');
 
-    const reviewButton = document.querySelector('[data-review-publish]');
-    if (reviewButton) {
-        reviewButton.addEventListener('click', async () => {
+    document.addEventListener('click', async (event) => {
+        const reviewButton = event.target.closest('[data-review-publish]');
+        if (reviewButton) {
             if (!window.confirm('Опубликовать новый прайс на сайте?')) return;
             reviewButton.disabled = true;
             try {
@@ -39,8 +131,8 @@
                 if (!response.ok || !result?.ok) { window.alert(result?.message || 'Не удалось опубликовать прайс. Обновите страницу и попробуйте снова.'); reviewButton.disabled = false; return; }
                 window.location.reload();
             } catch (error) { window.alert('Сеть недоступна. Прайс не опубликован.'); reviewButton.disabled = false; }
-        });
-    }
+        }
+    });
 
     panel.addEventListener('click', async (event) => {
         const button = event.target.closest('[data-version-action]');

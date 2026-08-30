@@ -12,6 +12,7 @@ require dirname(__DIR__, 2) . '/src/admin_bootstrap.php';
 if (!$adminSession->isAuthenticated()) admin_redirect('/admin/login.php');
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (!in_array($method, ['GET', 'POST'], true)) { http_response_code(405); header('Allow: GET, POST'); exit; }
+$isAjaxUpload = $method === 'POST' && ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest';
 if ($method === 'POST') {
     $flash = null;
     if (!$adminSession->validateCsrf($_POST['csrf_token'] ?? null)) $flash = ['type' => 'error', 'message' => 'Сессия формы устарела. Обновите страницу и попробуйте снова.'];
@@ -40,6 +41,35 @@ if ($method === 'POST') {
     }
     $flash ??= ['type' => 'error', 'message' => 'Не удалось обработать запрос.'];
     $flash['context'] = 'upload';
+    if ($isAjaxUpload) {
+        header('Content-Type: application/json; charset=UTF-8');
+        if (($flash['type'] ?? null) !== 'success') {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => $flash['message']], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+        $publishedId = $repository->publishedVersionId();
+        $current = $publishedId === null ? null : $repository->loadVersion($publishedId);
+        $currentItems = is_array($current) ? array_sum(array_map(static fn (array $category): int => count($category['services']), $current['categories'])) : 0;
+        $reviewData = ($flash['outcome'] ?? null) === 'unchanged_published' ? null : [
+            'version_id' => (int) $flash['version_id'],
+            'revision' => (int) ($stored['revision'] ?? 0),
+            'original_filename' => (string) ($stored['original_filename'] ?? ''),
+            'price_date' => $stored['price_date'] ?? null,
+            'sections' => (int) $flash['sections'],
+            'items' => (int) $flash['items'],
+            'expected_published_version_id' => $publishedId,
+            'current_price_date' => $current['price_date'] ?? null,
+            'current_items' => $currentItems,
+        ];
+        echo json_encode([
+            'ok' => true,
+            'message' => $flash['message'],
+            'status_message' => 'Файл проверен, ошибок не найдено.',
+            'review' => $reviewData,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
     $adminSession->setFlash($flash); admin_redirect('/admin/');
 }
 $flash = $adminSession->pullFlash(); $repository = null; $versions = []; $publishedVersionId = null; $statusError = null;
@@ -65,24 +95,24 @@ function admin_human_date(mixed $value): string { if (!is_string($value)) return
 $uploadExpanded = is_array($flash)
     && ($flash['type'] ?? null) === 'error'
     && ($flash['context'] ?? null) === 'upload';
-admin_page_start('Прайс-лист'); ?>
-<div class="toolbar admin-main-toolbar"><h1>Прайс-лист</h1><form method="post" action="/admin/logout.php"><input type="hidden" name="csrf_token" value="<?= admin_e($adminSession->csrfToken()) ?>"><button type="submit" class="button-secondary">Выйти</button></form></div>
+admin_page_start('Прайс-лист', '', $adminSession->csrfToken()); ?>
 <?php if (is_array($flash) && ($flash['type'] ?? null) === 'error'): ?><div class="notice error" role="alert"><?= admin_e($flash['message'] ?? 'Не удалось обработать запрос.') ?></div><?php endif; ?>
 <?php if (is_array($flash) && ($flash['type'] ?? null) === 'success' && in_array($flash['outcome'] ?? null, ['existing_draft', 'unchanged_published'], true)): ?><div class="notice success" role="status"><?= admin_e($flash['message'] ?? '') ?></div><?php endif; ?>
 <div class="admin-main-layout" data-version-actions data-csrf-token="<?= admin_e($adminSession->csrfToken()) ?>" data-published-version-id="<?= admin_e($publishedVersionId ?? '') ?>">
     <main class="primary-actions">
-        <section class="card primary-action-card" data-primary-edit>
-            <h2>Редактировать уже имеющийся прайс</h2>
+        <section class="card primary-action-card upload-accordion" data-primary-edit data-edit-accordion>
+            <h2 class="upload-accordion-heading"><button class="upload-accordion-toggle" type="button" aria-expanded="false" aria-controls="edit-accordion-content" data-edit-accordion-toggle><span>Редактировать уже имеющийся прайс</span><span class="upload-accordion-chevron" aria-hidden="true"></span></button></h2>
+            <div id="edit-accordion-content" class="upload-accordion-content" data-edit-accordion-content hidden>
             <p>Изменить услуги или цены вручную.</p>
             <?php if (is_array($editableVersion)): ?><a class="button-link" href="/admin/draft.php?id=<?= admin_e($editableVersion['id']) ?>">Продолжить редактирование</a><?php elseif ($publishedVersionId !== null): ?><form method="post" action="/admin/edit-current.php"><input type="hidden" name="csrf_token" value="<?= admin_e($adminSession->csrfToken()) ?>"><button type="submit">Редактировать прайс</button></form><?php else: ?><p>Прайс-лист ещё не загружен.</p><?php endif; ?>
+            </div>
         </section>
         <section class="card primary-action-card upload-accordion" data-primary-upload data-upload-accordion>
             <h2 class="upload-accordion-heading"><button class="upload-accordion-toggle" type="button" aria-expanded="<?= $uploadExpanded ? 'true' : 'false' ?>" aria-controls="upload-accordion-content" data-upload-accordion-toggle><span>Загрузить новый прайс</span><span class="upload-accordion-chevron" aria-hidden="true"></span></button></h2>
             <div id="upload-accordion-content" class="upload-accordion-content" data-upload-accordion-content<?= $uploadExpanded ? '' : ' hidden' ?>>
             <p>Загрузить новый Excel-файл с прайс-листом.</p>
-            <form method="post" action="/admin/" enctype="multipart/form-data" class="form-stack"><input type="hidden" name="csrf_token" value="<?= admin_e($adminSession->csrfToken()) ?>"><input type="hidden" name="MAX_FILE_SIZE" value="<?= UploadValidator::DEFAULT_MAX_BYTES ?>"><div class="file-picker"><input class="visually-hidden-file" id="price-file" type="file" name="price_file" accept=".xlsx" required data-file-input><label class="button-link file-picker-button" for="price-file">Выбрать Excel-файл</label><span class="file-picker-name" data-file-name aria-live="polite">Файл не выбран</span></div><button type="submit">Проверить файл</button></form>
-            <p class="reassurance">На сайте ничего не изменится, пока вы не нажмёте «Опубликовать».</p>
-            <?php if ($review !== null): $v = $review['version']; $current = $review['current']; $newServiceCount = array_sum(array_map(static fn (array $x): int => count($x['services']), $v['categories'])); $currentServiceCount = is_array($current) ? array_sum(array_map(static fn (array $x): int => count($x['services']), $current['categories'])) : 0; ?><div class="upload-review"><h3>Новый прайс готов к публикации</h3><div class="notice success"><strong>Прайс можно опубликовать</strong><br>Структура файла корректна. Ошибок не найдено.</div><dl class="status-grid"><div><dt>Файл</dt><dd><?= admin_e($v['original_filename']) ?></dd></div><div><dt>Дата прайса</dt><dd><?= admin_e(admin_human_date($v['price_date'])) ?></dd></div><div><dt>Разделов</dt><dd><?= count($v['categories']) ?></dd></div><div><dt>Услуг в новом прайсе</dt><dd><?= $newServiceCount ?></dd></div><div><dt>Сейчас на сайте</dt><dd><?= $currentServiceCount ?> услуг</dd></div></dl><p class="reassurance"><?php if (is_array($current)): ?>Прайс ещё не опубликован. На сайте продолжает действовать прайс от <?= admin_e(admin_human_date($current['price_date'] ?? null)) ?>.<?php else: ?>Прайс ещё не опубликован. Сейчас на сайте нет прайс-листа.<?php endif; ?></p><div class="review-actions"><button type="button" data-review-publish data-version-id="<?= admin_e($v['id']) ?>" data-revision="<?= admin_e($v['revision']) ?>" data-published-version-id="<?= admin_e($publishedVersionId ?? '') ?>">Опубликовать на сайте</button><a class="button-link button-secondary" href="/admin/">Отменить и вернуться</a></div></div><?php endif; ?>
+            <form method="post" action="/admin/" enctype="multipart/form-data" class="form-stack" data-upload-form><input type="hidden" name="csrf_token" value="<?= admin_e($adminSession->csrfToken()) ?>"><input type="hidden" name="MAX_FILE_SIZE" value="<?= UploadValidator::DEFAULT_MAX_BYTES ?>"><div class="file-picker"><input class="visually-hidden-file" id="price-file" type="file" name="price_file" accept=".xlsx" required data-file-input><label class="button-link file-picker-button" for="price-file">Выбрать Excel-файл</label><span class="file-picker-name" data-file-name aria-live="polite">Файл не выбран</span></div><p class="upload-check-status" data-upload-status role="status" aria-live="polite" hidden><span class="upload-spinner" data-upload-spinner aria-hidden="true"></span><span data-upload-status-text></span></p></form>
+            <div data-upload-result><?php if ($review !== null): $v = $review['version']; $current = $review['current']; $newServiceCount = array_sum(array_map(static fn (array $x): int => count($x['services']), $v['categories'])); $currentServiceCount = is_array($current) ? array_sum(array_map(static fn (array $x): int => count($x['services']), $current['categories'])) : 0; ?><div class="upload-review"><h3>Новый прайс готов к публикации</h3><div class="notice success"><strong>Прайс можно опубликовать</strong><br>Структура файла корректна. Ошибок не найдено.</div><dl class="status-grid"><div><dt>Файл</dt><dd><?= admin_e($v['original_filename']) ?></dd></div><div><dt>Дата прайса</dt><dd><?= admin_e(admin_human_date($v['price_date'])) ?></dd></div><div><dt>Разделов</dt><dd><?= count($v['categories']) ?></dd></div><div><dt>Услуг в новом прайсе</dt><dd><?= $newServiceCount ?></dd></div><div><dt>Сейчас на сайте</dt><dd><?= $currentServiceCount ?> услуг</dd></div></dl><p class="reassurance"><?php if (is_array($current)): ?>Прайс ещё не опубликован. На сайте продолжает действовать прайс от <?= admin_e(admin_human_date($current['price_date'] ?? null)) ?>.<?php else: ?>Прайс ещё не опубликован. Сейчас на сайте нет прайс-листа.<?php endif; ?></p><div class="review-actions"><button type="button" data-review-publish data-version-id="<?= admin_e($v['id']) ?>" data-revision="<?= admin_e($v['revision']) ?>" data-published-version-id="<?= admin_e($publishedVersionId ?? '') ?>">Опупликовать загруженный прайс на сайте</button><a class="button-link button-secondary" href="/admin/">Отменить и вернуться</a></div></div><?php endif; ?></div>
             </div>
         </section>
     </main>

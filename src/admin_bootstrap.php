@@ -39,7 +39,7 @@ function admin_redirect(string $path): never
     exit;
 }
 
-function admin_page_start(string $title, string $shellClass = ''): void
+function admin_page_start(string $title, string $shellClass = '', ?string $logoutCsrfToken = null): void
 {
     ?>
     <!doctype html>
@@ -53,8 +53,16 @@ function admin_page_start(string $title, string $shellClass = ''): void
     <body>
     <main class="admin-shell<?= $shellClass !== '' ? ' ' . admin_e($shellClass) : '' ?>">
         <header class="site-header">
-            <img class="site-logo" src="/assets/mcv26_logo_h.png" alt="Медицинский Центр Власова">
-            <span>Управление прайс-листом</span>
+            <div class="site-header-brand">
+                <img class="site-logo" src="/assets/mcv26_logo_h.png" alt="Медицинский Центр Власова">
+                <span>Управление прайс-листом</span>
+            </div>
+            <?php if ($logoutCsrfToken !== null): ?>
+                <form class="site-header-logout" method="post" action="/admin/logout.php">
+                    <input type="hidden" name="csrf_token" value="<?= admin_e($logoutCsrfToken) ?>">
+                    <button type="submit" class="button-secondary">Выйти</button>
+                </form>
+            <?php endif; ?>
         </header>
     <?php
 }
