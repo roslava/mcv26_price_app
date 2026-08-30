@@ -1,6 +1,17 @@
 (() => {
     'use strict';
 
+    const uploadAccordion = document.querySelector('[data-upload-accordion]');
+    const uploadToggle = uploadAccordion?.querySelector('[data-upload-accordion-toggle]');
+    const uploadContent = uploadAccordion?.querySelector('[data-upload-accordion-content]');
+    if (uploadToggle && uploadContent) {
+        uploadToggle.addEventListener('click', () => {
+            const expanded = uploadToggle.getAttribute('aria-expanded') !== 'true';
+            uploadToggle.setAttribute('aria-expanded', String(expanded));
+            uploadContent.hidden = !expanded;
+        });
+    }
+
     const fileInput = document.querySelector('[data-file-input]');
     const fileName = document.querySelector('[data-file-name]');
     if (fileInput && fileName) {

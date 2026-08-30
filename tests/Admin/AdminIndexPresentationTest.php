@@ -113,6 +113,22 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringNotContainsString('No file chosen', $source);
     }
 
+    public function testUploadIsAnAccessibleAccordionOpenedOnlyForUploadErrors(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-versions.js');
+
+        self::assertStringContainsString("$" . "flash['context'] = 'upload';", $source);
+        self::assertStringContainsString("($" . "flash['type'] ?? null) === 'error'", $source);
+        self::assertStringContainsString("($" . "flash['context'] ?? null) === 'upload'", $source);
+        self::assertStringContainsString('aria-expanded="<?= $uploadExpanded ? \'true\' : \'false\' ?>"', $source);
+        self::assertStringContainsString('aria-controls="upload-accordion-content"', $source);
+        self::assertStringContainsString('id="upload-accordion-content"', $source);
+        self::assertStringContainsString("$" . "uploadExpanded ? '' : ' hidden'", $source);
+        self::assertStringContainsString("setAttribute('aria-expanded', String(expanded))", $script);
+        self::assertStringContainsString('uploadContent.hidden = !expanded;', $script);
+    }
+
     public function testAdminHeaderUsesLocalClientLogo(): void
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/src/admin_bootstrap.php');
