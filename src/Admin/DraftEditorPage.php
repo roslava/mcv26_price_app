@@ -30,7 +30,7 @@ final class DraftEditorPage
     }
 
     /** @param array<string, mixed> $version */
-    public static function render(array $version, string $csrfToken): string
+    public static function render(array $version, string $csrfToken, ?int $publishedVersionId = null): string
     {
         if (($version['status'] ?? null) !== 'draft') {
             throw new RuntimeException('Only draft versions can be rendered as editable.');
@@ -39,13 +39,22 @@ final class DraftEditorPage
         $originalTotal = 0;
         $currentTotal = 0;
         $serviceCount = 0;
+        $increasedCount = 0;
+        $decreasedCount = 0;
         foreach ($version['categories'] as $category) {
             foreach ($category['services'] as $service) {
-                $originalTotal += (int) $service['imported_price_minor'];
-                $currentTotal += (int) $service['current_price_minor'];
+                $importedPrice = (int) $service['imported_price_minor'];
+                $currentPrice = (int) $service['current_price_minor'];
+                $originalTotal += $importedPrice;
+                $currentTotal += $currentPrice;
+                if ($currentPrice > $importedPrice) $increasedCount++;
+                if ($currentPrice < $importedPrice) $decreasedCount++;
                 $serviceCount++;
             }
         }
+        $changedCount = $increasedCount + $decreasedCount;
+        $isCurrentPublishedClone = $publishedVersionId !== null
+            && (int) ($version['restored_from_version_id'] ?? 0) === $publishedVersionId;
 
         ob_start();
         ?>
@@ -53,40 +62,9 @@ final class DraftEditorPage
              data-draft-editor
              data-version-id="<?= self::e($version['id']) ?>"
              data-revision="<?= self::e($version['revision']) ?>"
+             data-published-version-id="<?= self::e($publishedVersionId ?? '') ?>"
+             data-current-published-clone="<?= $isCurrentPublishedClone ? 'true' : 'false' ?>"
              data-csrf-token="<?= self::e($csrfToken) ?>">
-            <div class="toolbar draft-toolbar">
-                <div>
-                    <p class="eyebrow">Черновик версии №<?= self::e($version['id']) ?></p>
-                    <h1><?= self::e($version['title']) ?></h1>
-                    <p class="muted">Изменяйте текущие цены и сохраняйте черновик без публикации.</p>
-                </div>
-                <a class="button-link button-secondary" href="/admin/">Назад</a>
-            </div>
-
-            <dl class="draft-metadata card">
-                <div><dt>Дата прайса</dt><dd><?= self::e($version['price_date'] ?? 'Не указана') ?></dd></div>
-                <div><dt>Исходный файл</dt><dd><?= self::e($version['original_filename']) ?></dd></div>
-                <div><dt>Статус</dt><dd><span class="status-draft">Черновик</span></dd></div>
-                <div><dt>Услуг</dt><dd><?= $serviceCount ?></dd></div>
-            </dl>
-
-            <section class="draft-summary" aria-label="Сводка изменений">
-                <div><span>Дата прайса</span><strong><?= self::e($version['price_date'] ?? '—') ?></strong></div>
-                <div><span>Изменено</span><strong data-summary-changed>0</strong></div>
-                <div><span>Повышено</span><strong data-summary-increased>0</strong></div>
-                <div><span>Снижено</span><strong data-summary-decreased>0</strong></div>
-                <div><span>Исходная сумма</span><strong data-summary-original><?= self::money($originalTotal) ?></strong></div>
-                <div><span>Текущая сумма</span><strong data-summary-current><?= self::money($currentTotal) ?></strong></div>
-                <div><span>Общее изменение цен</span><strong data-summary-percent>0%</strong></div>
-                <div class="draft-actions">
-                    <button type="button" class="button-secondary" data-reset-prices>Сбросить</button>
-                    <button type="button" class="button-secondary" data-download-xlsx>Скачать Excel</button>
-                    <button type="button" data-save-prices disabled>Сохранить</button>
-                </div>
-                <p class="draft-state" data-draft-state aria-live="polite">Нет несохранённых изменений</p>
-                <p class="draft-save-message" data-save-message role="status" aria-live="polite"></p>
-            </section>
-
             <dialog class="export-dialog" data-export-dialog>
                 <form method="dialog">
                     <h2>Скачать Excel</h2>
@@ -99,6 +77,17 @@ final class DraftEditorPage
                 </form>
             </dialog>
 
+            <dialog class="publish-dialog" data-publish-dialog role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title">
+                <h2 id="publish-dialog-title">Опубликовать прайс?</h2>
+                <p>Сохранённая версия станет доступна на публичной странице.</p>
+                <p class="publish-dialog-message" data-publish-dialog-message role="alert" hidden></p>
+                <div class="publish-dialog-actions">
+                    <button type="button" class="button-secondary" data-publish-cancel autofocus>Отмена</button>
+                    <button type="button" data-publish-confirm>Опубликовать</button>
+                </div>
+            </dialog>
+
+            <div class="draft-editor-layout">
             <div class="draft-table-wrap">
                 <table class="draft-table">
                     <thead>
@@ -143,6 +132,41 @@ final class DraftEditorPage
                         </tbody>
                     <?php endforeach; ?>
                 </table>
+            </div>
+            <aside class="draft-sidebar" aria-label="Сведения и действия с черновиком">
+                <section class="draft-sidebar-section draft-about-accordion" data-draft-about-accordion>
+                    <h2 class="draft-about-heading"><button type="button" class="draft-about-toggle" aria-expanded="false" aria-controls="draft-about-content" data-draft-about-toggle><span>О прайсе</span><span class="<?= $isCurrentPublishedClone && $changedCount === 0 ? 'status-published-badge' : 'status-draft' ?>" data-draft-status><?= $isCurrentPublishedClone && $changedCount === 0 ? 'Опубликован' : 'Черновик' ?></span><span class="draft-about-chevron" aria-hidden="true"></span></button></h2>
+                    <dl id="draft-about-content" class="draft-sidebar-list draft-about-content" data-draft-about-content hidden>
+                        <div><dt>Название</dt><dd><?= self::e($version['title']) ?></dd></div>
+                        <div><dt>Версия</dt><dd>№<?= self::e($version['id']) ?></dd></div>
+                        <div><dt>Дата прайса</dt><dd><?= self::e($version['price_date'] ?? 'Не указана') ?></dd></div>
+                        <div><dt>Исходный файл</dt><dd><?= self::e($version['original_filename']) ?></dd></div>
+                        <div><dt>Услуг</dt><dd><?= $serviceCount ?></dd></div>
+                    </dl>
+                </section>
+                <section class="draft-sidebar-section" aria-label="Сводка изменений" data-summary-section<?= $changedCount === 0 ? ' hidden' : '' ?>>
+                    <h2>Изменения</h2>
+                    <dl class="draft-sidebar-list draft-change-list">
+                        <div data-summary-changed-row<?= $changedCount === 0 ? ' hidden' : '' ?>><dt>Изменено</dt><dd data-summary-changed><?= $changedCount ?></dd></div>
+                        <div data-summary-increased-row<?= $increasedCount === 0 ? ' hidden' : '' ?>><dt>Повышено</dt><dd class="change-positive" data-summary-increased><?= $increasedCount ?></dd></div>
+                        <div data-summary-decreased-row<?= $decreasedCount === 0 ? ' hidden' : '' ?>><dt>Снижено</dt><dd class="change-negative" data-summary-decreased><?= $decreasedCount ?></dd></div>
+                        <div><dt>Исходная сумма</dt><dd data-summary-original><?= self::money($originalTotal) ?></dd></div>
+                        <div><dt>Текущая сумма</dt><dd data-summary-current><?= self::money($currentTotal) ?></dd></div>
+                        <div data-summary-percent-row<?= $changedCount === 0 ? ' hidden' : '' ?>><dt>Общее изменение цен</dt><dd data-summary-percent>0%</dd></div>
+                    </dl>
+                </section>
+                <div class="draft-status-line">
+                    <p class="draft-state" data-draft-state aria-live="polite">Нет несохранённых изменений.</p>
+                    <p class="draft-publication-state" data-publication-state<?= $isCurrentPublishedClone && $changedCount === 0 ? '' : ' hidden' ?>>Текущий прайс уже опубликован на сайте.</p>
+                </div>
+                <p class="draft-save-message" data-save-message role="status" aria-live="polite"></p>
+                <div class="draft-actions">
+                    <button type="button" class="button-secondary" data-reset-prices hidden>Отменить изменения</button>
+                    <button type="button" class="button-secondary" data-download-xlsx>Скачать Excel</button>
+                    <button type="button" class="button-secondary" data-save-prices disabled hidden>Сохранить</button>
+                    <button type="button" data-publish-prices<?= $isCurrentPublishedClone && $changedCount === 0 ? ' hidden' : '' ?>>Опубликовать прайс</button>
+                </div>
+            </aside>
             </div>
         </div>
         <?php

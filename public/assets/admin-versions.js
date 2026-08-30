@@ -64,7 +64,7 @@
             <div><dt>Услуг в новом прайсе</dt><dd>${escapeHtml(review.items)}</dd></div>
             <div><dt>Сейчас на сайте</dt><dd>${escapeHtml(review.current_items)} услуг</dd></div></dl>
             <p class="reassurance">${currentText}</p><div class="review-actions">
-            <button type="button" data-review-publish data-version-id="${escapeHtml(review.version_id)}" data-revision="${escapeHtml(review.revision)}" data-published-version-id="${escapeHtml(review.expected_published_version_id || '')}">Опупликовать загруженный прайс на сайте</button>
+            <button type="button" data-review-publish data-version-id="${escapeHtml(review.version_id)}" data-revision="${escapeHtml(review.revision)}" data-published-version-id="${escapeHtml(review.expected_published_version_id || '')}">Опубликовать загруженный прайс на сайте</button>
             <a class="button-link button-secondary" href="/admin/">Отменить и вернуться</a></div></div>`;
     };
 
@@ -115,22 +115,65 @@
     const panel = document.querySelector('[data-version-actions]');
     if (!panel) return;
     const message = panel.querySelector('[data-version-message]');
+    const uploadPublishDialog = document.querySelector('[data-upload-publish-dialog]');
+    const uploadPublishCancel = uploadPublishDialog?.querySelector('[data-upload-publish-cancel]');
+    const uploadPublishConfirm = uploadPublishDialog?.querySelector('[data-upload-publish-confirm]');
+    const uploadPublishMessage = uploadPublishDialog?.querySelector('[data-upload-publish-message]');
+    let pendingReviewButton = null;
+    let reviewPublishing = false;
 
-    document.addEventListener('click', async (event) => {
+    document.addEventListener('click', (event) => {
         const reviewButton = event.target.closest('[data-review-publish]');
-        if (reviewButton) {
-            if (!window.confirm('Опубликовать новый прайс на сайте?')) return;
-            reviewButton.disabled = true;
-            try {
-                const response = await fetch('/admin/publish-version.php', {
-                    method: 'POST', credentials: 'same-origin',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': panel.dataset.csrfToken},
-                    body: JSON.stringify({version_id: reviewButton.dataset.versionId, expected_revision: reviewButton.dataset.revision, expected_published_version_id: reviewButton.dataset.publishedVersionId || null}),
-                });
-                const result = await response.json().catch(() => null);
-                if (!response.ok || !result?.ok) { window.alert(result?.message || 'Не удалось опубликовать прайс. Обновите страницу и попробуйте снова.'); reviewButton.disabled = false; return; }
-                window.location.reload();
-            } catch (error) { window.alert('Сеть недоступна. Прайс не опубликован.'); reviewButton.disabled = false; }
+        if (!reviewButton || reviewPublishing) return;
+        pendingReviewButton = reviewButton;
+        uploadPublishMessage.hidden = true;
+        uploadPublishMessage.textContent = '';
+        uploadPublishDialog.showModal();
+    });
+
+    uploadPublishCancel?.addEventListener('click', () => {
+        if (!reviewPublishing) uploadPublishDialog.close();
+    });
+    uploadPublishDialog?.addEventListener('click', (event) => {
+        if (event.target !== uploadPublishDialog || reviewPublishing) return;
+        const bounds = uploadPublishDialog.getBoundingClientRect();
+        const outside = event.clientX < bounds.left || event.clientX > bounds.right
+            || event.clientY < bounds.top || event.clientY > bounds.bottom;
+        if (outside) uploadPublishDialog.close();
+    });
+    uploadPublishDialog?.addEventListener('cancel', (event) => {
+        if (reviewPublishing) event.preventDefault();
+    });
+    uploadPublishConfirm?.addEventListener('click', async () => {
+        if (!pendingReviewButton || reviewPublishing) return;
+        reviewPublishing = true;
+        pendingReviewButton.disabled = true;
+        uploadPublishConfirm.disabled = true;
+        uploadPublishCancel.disabled = true;
+        uploadPublishConfirm.textContent = 'Публикуем…';
+        uploadPublishMessage.hidden = true;
+        try {
+            const response = await fetch('/admin/publish-version.php', {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': panel.dataset.csrfToken},
+                body: JSON.stringify({version_id: pendingReviewButton.dataset.versionId, expected_revision: pendingReviewButton.dataset.revision, expected_published_version_id: pendingReviewButton.dataset.publishedVersionId || null}),
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.ok) {
+                uploadPublishMessage.textContent = result?.message || 'Не удалось опубликовать прайс. Обновите страницу и попробуйте снова.';
+                uploadPublishMessage.hidden = false;
+                return;
+            }
+            window.location.reload();
+        } catch (error) {
+            uploadPublishMessage.textContent = 'Сеть недоступна. Прайс не опубликован.';
+            uploadPublishMessage.hidden = false;
+        } finally {
+            reviewPublishing = false;
+            pendingReviewButton.disabled = false;
+            uploadPublishConfirm.disabled = false;
+            uploadPublishCancel.disabled = false;
+            uploadPublishConfirm.textContent = 'Опубликовать';
         }
     });
 

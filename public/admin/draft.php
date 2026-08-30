@@ -26,8 +26,10 @@ if (!is_string($submittedId) || !preg_match('/^[1-9]\d*$/D', $submittedId)) {
 
 try {
     $pdo = PdoConnectionFactory::create(DatabaseConfig::fromEnvironment());
-    $page = new DraftEditorPage(new DatabasePriceRepository($pdo));
+    $repository = new DatabasePriceRepository($pdo);
+    $page = new DraftEditorPage($repository);
     $version = $page->loadDraft((int) $submittedId);
+    $publishedVersionId = $repository->publishedVersionId();
 } catch (RuntimeException $exception) {
     $adminSession->setFlash(['type' => 'error', 'message' => 'Черновик не найден или недоступен для редактирования.']);
     admin_redirect('/admin/');
@@ -40,8 +42,14 @@ try {
     exit;
 }
 
-admin_page_start('Редактор черновика', 'admin-shell-wide');
-echo $page->render($version, $adminSession->csrfToken());
+admin_page_start(
+    'Редактор черновика',
+    'admin-shell-wide',
+    null,
+    '/admin/',
+    'Вернуться на главную страницу админки'
+);
+echo $page->render($version, $adminSession->csrfToken(), $publishedVersionId);
 ?>
 <script src="/assets/admin-draft.js" defer></script>
 <?php

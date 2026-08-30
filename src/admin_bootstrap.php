@@ -39,7 +39,13 @@ function admin_redirect(string $path): never
     exit;
 }
 
-function admin_page_start(string $title, string $shellClass = '', ?string $logoutCsrfToken = null): void
+function admin_page_start(
+    string $title,
+    string $shellClass = '',
+    ?string $logoutCsrfToken = null,
+    ?string $headerLinkHref = null,
+    ?string $headerLinkLabel = null
+): void
 {
     ?>
     <!doctype html>
@@ -62,6 +68,8 @@ function admin_page_start(string $title, string $shellClass = '', ?string $logou
                     <input type="hidden" name="csrf_token" value="<?= admin_e($logoutCsrfToken) ?>">
                     <button type="submit" class="button-secondary">Выйти</button>
                 </form>
+            <?php elseif ($headerLinkHref !== null && $headerLinkLabel !== null): ?>
+                <a class="site-header-link" href="<?= admin_e($headerLinkHref) ?>"><?= admin_e($headerLinkLabel) ?></a>
             <?php endif; ?>
         </header>
     <?php

@@ -274,6 +274,11 @@ h1 {
     align-items: start;
     padding: 16px 22px;
     border-bottom: 1px solid var(--soft-line);
+    transition: background-color 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .service-row:hover { background: rgb(0 78 137 / 4%); }
 }
 
 .service-row:last-child {
@@ -333,6 +338,10 @@ input:focus-visible {
     html {
         scroll-behavior: smooth;
     }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .service-row { transition: none; }
 }
 
 .public-footer {

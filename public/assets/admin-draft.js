@@ -4,16 +4,34 @@
     const editor = document.querySelector('[data-draft-editor]');
     if (!editor) return;
 
+    const aboutToggle = editor.querySelector('[data-draft-about-toggle]');
+    const aboutContent = editor.querySelector('[data-draft-about-content]');
+    if (aboutToggle && aboutContent) {
+        aboutToggle.addEventListener('click', () => {
+            const expanded = aboutToggle.getAttribute('aria-expanded') !== 'true';
+            aboutToggle.setAttribute('aria-expanded', String(expanded));
+            aboutContent.hidden = !expanded;
+        });
+    }
+
     const MAX_MINOR = 9223372036854775807n;
     const rows = Array.from(editor.querySelectorAll('[data-price-row]'));
     const inputs = rows.map((row) => row.querySelector('.price-input'));
     const saveButton = editor.querySelector('[data-save-prices]');
+    const publishButton = editor.querySelector('[data-publish-prices]');
+    const publicationState = editor.querySelector('[data-publication-state]');
+    const draftStatus = editor.querySelector('[data-draft-status]');
     const downloadButton = editor.querySelector('[data-download-xlsx]');
+    const resetButton = editor.querySelector('[data-reset-prices]');
     const saveMessage = editor.querySelector('[data-save-message]');
     const exportDialog = editor.querySelector('[data-export-dialog]');
     const saveDownloadButton = editor.querySelector('[data-save-download]');
     const downloadSavedButton = editor.querySelector('[data-download-saved]');
     const exportDialogText = editor.querySelector('[data-export-dialog-text]');
+    const publishDialog = editor.querySelector('[data-publish-dialog]');
+    const publishCancelButton = editor.querySelector('[data-publish-cancel]');
+    const publishConfirmButton = editor.querySelector('[data-publish-confirm]');
+    const publishDialogMessage = editor.querySelector('[data-publish-dialog-message]');
     const summary = {
         changed: editor.querySelector('[data-summary-changed]'),
         increased: editor.querySelector('[data-summary-increased]'),
@@ -22,10 +40,17 @@
         current: editor.querySelector('[data-summary-current]'),
         percent: editor.querySelector('[data-summary-percent]'),
         state: editor.querySelector('[data-draft-state]'),
+        section: editor.querySelector('[data-summary-section]'),
+        changedRow: editor.querySelector('[data-summary-changed-row]'),
+        increasedRow: editor.querySelector('[data-summary-increased-row]'),
+        decreasedRow: editor.querySelector('[data-summary-decreased-row]'),
+        percentRow: editor.querySelector('[data-summary-percent-row]'),
     };
     let hasValidUnsavedChanges = false;
     let invalidCount = 0;
     let isSaving = false;
+    let isPublishing = false;
+    const isCurrentPublishedClone = editor.dataset.currentPublishedClone === 'true';
 
     function parseMinor(text) {
         const normalized = text.trim().replace(',', '.');
@@ -67,6 +92,7 @@
         let originalTotal = 0n;
         let currentTotal = 0n;
         let changed = 0;
+        let unsaved = 0;
         let increased = 0;
         let decreased = 0;
         let invalid = 0;
@@ -98,11 +124,12 @@
             } else {
                 row.classList.add('price-unchanged');
             }
-            if (current !== loaded) changed++;
+            if (current !== imported) changed++;
+            if (current !== loaded) unsaved++;
         });
 
         // Invalid rows do not count as changes, but must not suppress a warning for other valid edits.
-        hasValidUnsavedChanges = changed > 0;
+        hasValidUnsavedChanges = unsaved > 0;
         invalidCount = invalid;
         summary.changed.textContent = String(changed);
         summary.increased.textContent = String(increased);
@@ -110,13 +137,27 @@
         summary.original.textContent = money(originalTotal);
         summary.current.textContent = invalid === 0 ? money(currentTotal) : '—';
         summary.percent.textContent = invalid === 0 ? percent(currentTotal, originalTotal) : '—';
+        summary.section.hidden = changed === 0;
+        summary.changedRow.hidden = changed === 0;
+        summary.increasedRow.hidden = increased === 0;
+        summary.decreasedRow.hidden = decreased === 0;
+        summary.percentRow.hidden = changed === 0;
         summary.state.textContent = invalid > 0
             ? `Ошибок в ценах: ${invalid}`
-            : changed > 0 ? `Несохранённых изменений: ${changed}` : 'Нет несохранённых изменений';
+            : unsaved > 0 ? `Несохранённых изменений: ${unsaved}` : 'Нет несохранённых изменений.';
         summary.state.classList.toggle('has-errors', invalid > 0);
-        summary.state.classList.toggle('is-modified', changed > 0 && invalid === 0);
-        editor.classList.toggle('is-modified', changed > 0);
-        saveButton.disabled = changed === 0 || invalid > 0 || isSaving;
+        summary.state.classList.toggle('is-modified', unsaved > 0 && invalid === 0);
+        editor.classList.toggle('is-modified', unsaved > 0);
+        saveButton.disabled = unsaved === 0 || invalid > 0 || isSaving;
+        saveButton.hidden = unsaved === 0 && invalid === 0;
+        publishButton.disabled = unsaved > 0 || invalid > 0 || isSaving;
+        const alreadyPublished = isCurrentPublishedClone && changed === 0 && unsaved === 0 && invalid === 0;
+        publishButton.hidden = alreadyPublished;
+        publicationState.hidden = !alreadyPublished;
+        draftStatus.textContent = alreadyPublished ? 'Опубликован' : 'Черновик';
+        draftStatus.className = alreadyPublished ? 'status-published-badge' : 'status-draft';
+        downloadButton.hidden = unsaved > 0 || invalid > 0 || isSaving;
+        resetButton.hidden = (unsaved === 0 && invalid === 0) || isSaving;
     }
 
     inputs.forEach((input, index) => {
@@ -146,7 +187,7 @@
         });
     });
 
-    editor.querySelector('[data-reset-prices]').addEventListener('click', () => {
+    resetButton.addEventListener('click', () => {
         rows.forEach((row, index) => {
             inputs[index].value = decimal(BigInt(row.dataset.loadedMinor));
         });
@@ -222,6 +263,78 @@
 
     saveButton.addEventListener('click', async () => {
         await saveDraft();
+    });
+
+    publishButton.addEventListener('click', async () => {
+        update();
+        if (hasValidUnsavedChanges || invalidCount > 0 || isSaving) return;
+        publishDialogMessage.hidden = true;
+        publishDialogMessage.textContent = '';
+        publishDialog.showModal();
+    });
+
+    publishCancelButton.addEventListener('click', () => {
+        if (!isPublishing) publishDialog.close();
+    });
+
+    publishDialog.addEventListener('click', (event) => {
+        if (event.target !== publishDialog || isPublishing) return;
+        const bounds = publishDialog.getBoundingClientRect();
+        const outside = event.clientX < bounds.left || event.clientX > bounds.right
+            || event.clientY < bounds.top || event.clientY > bounds.bottom;
+        if (outside) publishDialog.close();
+    });
+
+    publishDialog.addEventListener('cancel', (event) => {
+        if (isPublishing) event.preventDefault();
+    });
+
+    publishConfirmButton.addEventListener('click', async () => {
+        if (isPublishing) return;
+        isPublishing = true;
+        isSaving = true;
+        publishConfirmButton.disabled = true;
+        publishCancelButton.disabled = true;
+        publishConfirmButton.textContent = 'Публикуем…';
+        publishDialogMessage.hidden = true;
+        update();
+        saveMessage.textContent = 'Публикация…';
+        saveMessage.className = 'draft-save-message';
+        try {
+            const response = await fetch('/admin/publish-version.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': editor.dataset.csrfToken},
+                body: JSON.stringify({
+                    version_id: editor.dataset.versionId,
+                    expected_revision: editor.dataset.revision,
+                    expected_published_version_id: editor.dataset.publishedVersionId || null,
+                }),
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.ok) {
+                const message = result?.message || 'Не удалось опубликовать прайс.';
+                publishDialogMessage.textContent = message;
+                publishDialogMessage.hidden = false;
+                saveMessage.textContent = message;
+                saveMessage.classList.add('has-errors');
+                return;
+            }
+            window.location.assign('/');
+        } catch (error) {
+            const message = 'Сеть недоступна. Прайс не опубликован.';
+            publishDialogMessage.textContent = message;
+            publishDialogMessage.hidden = false;
+            saveMessage.textContent = message;
+            saveMessage.classList.add('has-errors');
+        } finally {
+            isPublishing = false;
+            isSaving = false;
+            publishConfirmButton.disabled = false;
+            publishCancelButton.disabled = false;
+            publishConfirmButton.textContent = 'Опубликовать';
+            update();
+        }
     });
 
     downloadButton.addEventListener('click', () => {

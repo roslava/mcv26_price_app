@@ -38,4 +38,13 @@ final class PublicIndexPresentationTest extends TestCase
         self::assertStringContainsString('<header class="public-header">', $source);
         self::assertStringContainsString('<footer class="public-footer">', $source);
     }
+
+    public function testServiceRowsHaveSubtlePointerHoverAndReducedMotionFallback(): void
+    {
+        $styles = (string) file_get_contents(dirname(__DIR__) . '/public/assets/price.css');
+
+        self::assertMatchesRegularExpression('/\.service-row:hover\s*\{[^}]*background:/s', $styles);
+        self::assertStringContainsString('transition: background-color 140ms ease;', $styles);
+        self::assertStringContainsString('.service-row { transition: none; }', $styles);
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mcv26\Price\Tests\Database;
 
 use Mcv26\Price\Admin\ArchivedVersionRestorer;
+use Mcv26\Price\Admin\CurrentPublishedVersionEditorStarter;
 use Mcv26\Price\Admin\DraftPriceSaver;
 use Mcv26\Price\Admin\VersionPublisher;
 use Mcv26\Price\Database\DatabaseConfig;
@@ -152,6 +153,27 @@ final class DatabasePublicPriceReaderIntegrationTest extends TestCase
         self::assertSame('370.50', $data['sections'][0]['items'][0]['price']);
         self::assertSame('Title <unsafe>', $data['source']['title']);
         self::assertSame('Code&', $data['sections'][0]['items'][0]['code']);
+    }
+
+    public function testSavedManualPriceBecomesPublicAfterPublishingEditedDraft(): void
+    {
+        $published = $this->createSimpleVersion('Текущий прайс', '2025-04-01', 'CODE', 'Услуга');
+        $this->repository->publishVersion($published);
+        $draft = (new CurrentPublishedVersionEditorStarter($this->pdo, $this->repository))
+            ->start()['draft_version_id'];
+
+        (new DraftPriceSaver($this->pdo, $this->repository))->save(
+            $draft,
+            0,
+            $this->pricesFor($draft, 47550),
+            'regression-test'
+        );
+
+        self::assertSame(37000, $this->reader->read()['sections'][0]['items'][0]['price_minor']);
+        (new VersionPublisher($this->pdo, $this->repository))->publish($draft, 1, $published);
+        $public = $this->reader->read();
+        self::assertSame(47550, $public['sections'][0]['items'][0]['price_minor']);
+        self::assertSame('475.50', $public['sections'][0]['items'][0]['price']);
     }
 
     private function createRealVersion(string $status = 'draft'): int

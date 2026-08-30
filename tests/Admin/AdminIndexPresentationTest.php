@@ -157,7 +157,7 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString('uploadController?.abort();', $script);
         self::assertStringContainsString('if (request !== uploadRequest) return;', $script);
         self::assertStringContainsString("'Файл проверен, ошибок не найдено.'", $source);
-        self::assertStringContainsString('Опупликовать загруженный прайс на сайте', $source);
+        self::assertStringContainsString('Опубликовать загруженный прайс на сайте', $source);
         self::assertStringNotContainsString('data-upload-publish-placeholder', $source);
         self::assertStringNotContainsString('На сайте ничего не изменится, пока вы не нажмёте «Опубликовать».', $source);
         self::assertStringNotContainsString('>Проверить файл</button>', $source);
@@ -172,6 +172,23 @@ final class AdminIndexPresentationTest extends TestCase
         self::assertStringContainsString("if ($" . "isAjaxUpload)", $source);
         self::assertStringContainsString("'review' => $" . "reviewData", $source);
         self::assertStringContainsString("'expected_published_version_id' => $" . "publishedId", $source);
+    }
+
+    public function testUploadedPricePublicationUsesCustomAccessibleDialog(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/public/admin/index.php');
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-versions.js');
+
+        self::assertStringContainsString('role="dialog" aria-modal="true" aria-labelledby="upload-publish-dialog-title"', $source);
+        self::assertStringContainsString('<h2 id="upload-publish-dialog-title">Опубликовать новый прайс?</h2>', $source);
+        self::assertStringContainsString('Загруженный прайс станет доступен на публичной странице сайта.', $source);
+        self::assertStringContainsString('data-upload-publish-cancel autofocus>Отмена</button>', $source);
+        self::assertStringContainsString('data-upload-publish-confirm>Опубликовать</button>', $source);
+        self::assertStringNotContainsString("window.confirm('Опубликовать новый прайс на сайте?')", $script);
+        self::assertStringContainsString('uploadPublishDialog.showModal();', $script);
+        self::assertStringContainsString("uploadPublishConfirm.textContent = 'Публикуем…';", $script);
+        self::assertStringContainsString('if (!pendingReviewButton || reviewPublishing) return;', $script);
+        self::assertStringContainsString('uploadPublishMessage.hidden = false;', $script);
     }
 
     public function testAdminHeaderUsesLocalClientLogo(): void
