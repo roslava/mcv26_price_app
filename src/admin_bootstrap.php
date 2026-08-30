@@ -14,6 +14,7 @@ header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
 header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
+require dirname(__DIR__) . '/src/load_env.php';
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 try {
