@@ -24,6 +24,21 @@ final class DraftEditorPageTest extends TestCase
         self::assertMatchesRegularExpression('/\.service-edit-row:not\(\.price-invalid\):hover\s*\{[^}]*background:/s', $css);
         self::assertMatchesRegularExpression('/\.service-edit-row:not\(\.price-invalid\):focus-within\s*\{[^}]*background:/s', $css);
         self::assertStringContainsString('.service-edit-row { transition: none; }', $css);
+        self::assertStringContainsString('font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;', $css);
+    }
+
+    public function testCategoryNamesUseUppercasePresentationWithoutChangingSourceValues(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin.css');
+        $renderer = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Admin/DraftEditorPage.php');
+
+        self::assertMatchesRegularExpression(
+            '/\.category-row th\s*\{[^}]*text-transform:\s*uppercase;/s',
+            $css
+        );
+        self::assertStringContainsString("self::e(\$category['name'])", $renderer);
+        self::assertStringNotContainsString('strtoupper(', $renderer);
+        self::assertStringNotContainsString('mb_strtoupper(', $renderer);
     }
 
     public function testFormatsMoneyFromIntegerMinorUnits(): void

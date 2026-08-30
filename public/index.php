@@ -105,22 +105,16 @@ foreach ($sections as $section) {
 <div class="public-hero-area">
 <header class="public-header">
     <div class="container header-inner">
-        <a class="brand" href="<?= public_e(AppUrl::publicPath('/')) ?>">
+        <a class="brand" href="https://mcv26.ru/">
             <img class="public-logo" src="<?= public_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
         </a>
-        <?php if ($priceDate !== null): ?>
-            <p class="header-date">Прайс от <time datetime="<?= public_e($priceData['source']['price_date']) ?>"><?= public_e($priceDate) ?></time></p>
-        <?php endif; ?>
     </div>
 </header>
 
     <section class="hero">
         <div class="container">
-            <h1>Прайс-лист</h1>
-            <p class="intro">Цены носят информационный характер и могут обновляться.</p>
-            <?php if ($priceData !== null): ?>
-                <p class="source-title"><?= public_e($priceData['source']['title']) ?></p>
-            <?php endif; ?>
+            <h1>Услуги и цены</h1>
+            <a class="hero-home-link" href="https://mcv26.ru/">← вернуться на главную страницу</a>
         </div>
     </section>
 </div>
@@ -179,6 +173,7 @@ foreach ($sections as $section) {
                 </section>
             <?php endforeach; ?>
                 </div>
+                <a class="price-home-link" href="https://mcv26.ru/">← вернуться на главную страницу</a>
             </div>
         </div>
     </div>
@@ -187,7 +182,12 @@ foreach ($sections as $section) {
 
 <footer class="public-footer">
     <div class="container public-footer-inner">
-        <p>Информация о ценах может быть обновлена.</p>
+        <?php if ($priceData !== null): ?>
+            <p class="footer-price-source">
+                <?= public_e($priceData['source']['title']) ?><?php if ($priceDate !== null): ?> от <time datetime="<?= public_e($priceData['source']['price_date']) ?>"><?= public_e($priceDate) ?></time> г.<?php endif; ?>
+            </p>
+        <?php endif; ?>
+        <p>Цены носят информационный характер и могут обновляться.</p>
         <a class="admin-service-link" href="<?= public_e(AppUrl::adminPath('/')) ?>" title="Администрирование прайса" aria-label="Администрирование прайса">
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false"><path d="M14.5 3a6.5 6.5 0 0 0-5.9 9.23L2 18.83V22h3.17l1.5-1.5H9v-2.33l1.77-1.77A6.5 6.5 0 1 0 14.5 3Zm0 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" fill="currentColor"/></svg>
         </a>

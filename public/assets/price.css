@@ -25,7 +25,7 @@ body {
     margin: 0;
     background: var(--background);
     color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     line-height: 1.55;
 }
 
@@ -83,16 +83,10 @@ body {
 
 .public-logo { display: block; width: 190px; max-width: 52vw; height: auto; }
 
-.header-date {
-    margin: 0;
-    color: rgb(255 255 255 / 88%);
-    font-size: 14px;
-}
-
 .hero {
     position: relative;
     z-index: 1;
-    padding: 56px 0 42px;
+    padding: 30px 0;
     border-bottom: 0;
     background: transparent;
 }
@@ -128,12 +122,38 @@ h1 {
     font-size: 18px;
 }
 
-.source-title {
-    max-width: 760px;
-    margin: 0;
-    overflow-wrap: anywhere;
-    color: rgb(255 255 255 / 94%);
+.hero-home-link,
+.price-home-link {
+    color: inherit;
     font-size: 14px;
+    text-decoration: none;
+}
+
+.hero-home-link {
+    display: inline-block;
+    margin-top: 10px;
+    color: rgb(255 255 255 / 92%);
+}
+
+.hero-home-link:hover,
+.hero-home-link:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.price-home-link {
+    display: block;
+    margin-top: 14px;
+    color: var(--blue);
+    text-align: right;
+}
+
+.price-home-link:hover,
+.price-home-link:focus-visible {
+    color: var(--brand-orange);
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .price-content {
@@ -280,7 +300,7 @@ h1 {
     padding: 3px 6px;
     border: 1px solid transparent;
     border-radius: 5px;
-    background: #EFEFD0;
+    background: #f9f8e1;
     color: #173243;
     font-size: 11px;
     font-weight: 600;
@@ -291,9 +311,14 @@ h1 {
 }
 
 .section-nav a:hover {
-    border-color: var(--brand-blue);
-    background: #e5e5bb;
+    background: #f1efcf;
     color: var(--brand-blue);
+}
+
+.section-nav a.is-active,
+.section-nav a[aria-current="location"] {
+    background: #ffd3b2;
+    color: #173243;
 }
 
 .price-section {
@@ -394,13 +419,14 @@ input:focus-visible {
 .public-footer {
     padding: 28px 0;
     border-top: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--muted);
+    background: #004e87;
+    color: rgb(255 255 255 / 90%);
     font-size: 14px;
 }
 
 .public-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .public-footer-inner p { margin: 0; }
+.footer-price-source { overflow-wrap: anywhere; }
 .admin-service-link {
     display: inline-flex;
     flex: 0 0 auto;
@@ -408,10 +434,10 @@ input:focus-visible {
     justify-content: center;
     padding: 5px;
     border-radius: 6px;
-    color: var(--muted);
+    color: rgb(255 255 255 / 72%);
     opacity: 0.72;
 }
-.admin-service-link:hover { background: rgb(0 78 137 / 6%); color: var(--brand-navy); opacity: 1; }
+.admin-service-link:hover { background: rgb(255 255 255 / 12%); color: #fff; opacity: 1; }
 .admin-service-link:focus-visible { outline: 2px solid var(--brand-orange); outline-offset: 2px; opacity: 1; }
 
 .public-footer p {
@@ -466,13 +492,8 @@ input:focus-visible {
         min-height: 64px;
     }
 
-    .header-date {
-        max-width: 150px;
-        text-align: right;
-    }
-
     .hero {
-        padding: 38px 0 30px;
+        padding: 30px 0;
     }
 
     .price-content {
@@ -503,6 +524,11 @@ input:focus-visible {
     .search-status,
     .no-results {
         margin-top: 10px;
+    }
+
+    .public-footer-inner {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .service-columns {

@@ -53,7 +53,7 @@ final class AppUrlTest extends TestCase
         self::assertStringContainsString('AppUrl::adminPath($path)', $bootstrap);
         self::assertStringContainsString("AppUrl::adminPath('logout.php')", $bootstrap);
         self::assertStringContainsString("AppUrl::adminPath('/')", $public);
-        self::assertStringContainsString("AppUrl::publicPath('/')", $public);
+        self::assertStringContainsString('href="https://mcv26.ru/"', $public);
         self::assertStringContainsString("appUrl('export-version.php')", $draftScript);
         self::assertStringNotContainsString("admin_url('/admin/", $bootstrap . $public);
         self::assertStringNotContainsString("appUrl('admin/", $draftScript);

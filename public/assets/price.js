@@ -32,6 +32,51 @@
         };
     });
 
+    const setActiveSection = (section) => {
+        sectionData.forEach((item) => {
+            const active = item.element === section;
+            if (item.navItem instanceof HTMLElement) {
+                const link = item.navItem.querySelector('a');
+                link?.classList.toggle('is-active', active);
+                if (active) {
+                    link?.setAttribute('aria-current', 'location');
+                } else {
+                    link?.removeAttribute('aria-current');
+                }
+            }
+        });
+    };
+
+    const setActiveSectionFromPosition = () => {
+        const marker = 110;
+        const visible = sectionData.filter((item) => !item.element.hidden);
+        const passed = visible.filter((item) => item.element.getBoundingClientRect().top <= marker);
+        const current = passed.length > 0 ? passed[passed.length - 1] : visible[0];
+        if (current) {
+            setActiveSection(current.element);
+        }
+    };
+
+    sectionData.forEach((item) => {
+        item.navItem?.querySelector('a')?.addEventListener('click', () => setActiveSection(item.element));
+    });
+
+    if ('IntersectionObserver' in window) {
+        const sectionObserver = new IntersectionObserver((entries) => {
+            const intersecting = entries
+                .filter((entry) => entry.isIntersecting)
+                .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+            if (intersecting.length > 0) {
+                setActiveSection(intersecting[0].target);
+            }
+        }, { rootMargin: '-100px 0px -65% 0px', threshold: [0, 1] });
+        sections.forEach((section) => sectionObserver.observe(section));
+    }
+
+    setActiveSectionFromPosition();
+    window.addEventListener('load', setActiveSectionFromPosition, { once: true });
+    window.addEventListener('pageshow', setActiveSectionFromPosition);
+
     const update = () => {
         const query = normalize(input.value);
         let visibleServices = 0;
@@ -58,6 +103,7 @@
 
         noResults.hidden = visibleServices !== 0;
         status.textContent = visibleServices === 0 ? '' : `Показано услуг: ${visibleServices}`;
+        setActiveSectionFromPosition();
     };
 
     input.addEventListener('input', update);
@@ -65,31 +111,45 @@
     if (backToTools instanceof HTMLAnchorElement) {
         const searchPanel = document.querySelector('.search-panel');
         let ticking = false;
-        let revealAt = searchPanel instanceof HTMLElement
-            ? searchPanel.getBoundingClientRect().bottom + window.scrollY + 80
-            : 400;
+        let revealAt = 400;
 
-        backToTools.hidden = true;
+        const recalculateRevealAt = () => {
+            if (searchPanel instanceof HTMLElement) {
+                revealAt = searchPanel.getBoundingClientRect().bottom + window.scrollY + 80;
+            }
+        };
 
-        const updateBackToTools = () => {
+        const updateBackToToolsVisibility = () => {
             backToTools.hidden = window.scrollY <= revealAt;
             ticking = false;
         };
 
-        window.addEventListener('scroll', () => {
+        const scheduleBackToToolsVisibility = () => {
             if (!ticking) {
-                window.requestAnimationFrame(updateBackToTools);
+                window.requestAnimationFrame(updateBackToToolsVisibility);
                 ticking = true;
             }
+        };
+
+        window.addEventListener('scroll', () => {
+            scheduleBackToToolsVisibility();
         }, { passive: true });
 
         window.addEventListener('resize', () => {
-            if (searchPanel instanceof HTMLElement && window.scrollY === 0) {
-                revealAt = searchPanel.getBoundingClientRect().bottom + window.scrollY + 80;
-            }
-            updateBackToTools();
+            recalculateRevealAt();
+            scheduleBackToToolsVisibility();
         });
-        updateBackToTools();
+        // Initialize immediately and after browser history restoration (bfcache).
+        recalculateRevealAt();
+        updateBackToToolsVisibility();
+        window.addEventListener('load', () => {
+            recalculateRevealAt();
+            updateBackToToolsVisibility();
+        }, { once: true });
+        window.addEventListener('pageshow', () => {
+            recalculateRevealAt();
+            updateBackToToolsVisibility();
+        });
     }
 
 })();

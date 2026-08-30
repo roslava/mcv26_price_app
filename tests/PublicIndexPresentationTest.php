@@ -12,6 +12,7 @@ final class PublicIndexPresentationTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__) . '/public/index.php');
 
+        self::assertStringContainsString('href="https://mcv26.ru/"', $source);
         self::assertStringContainsString("AppUrl::assetPath('mcv26_logo_h.png')", $source);
         self::assertStringContainsString('alt="Медицинский Центр Власова"', $source);
         self::assertStringNotContainsString('class="brand-mark"', $source);
@@ -96,9 +97,12 @@ final class PublicIndexPresentationTest extends TestCase
     {
         $script = (string) file_get_contents(dirname(__DIR__) . '/public/assets/price.js');
 
-        self::assertStringContainsString('backToTools.hidden = true;', $script);
+        self::assertStringContainsString('const updateBackToToolsVisibility = () => {', $script);
         self::assertStringContainsString('searchPanel.getBoundingClientRect().bottom + window.scrollY + 80', $script);
         self::assertStringContainsString('backToTools.hidden = window.scrollY <= revealAt;', $script);
+        self::assertStringContainsString('const recalculateRevealAt = () => {', $script);
+        self::assertStringContainsString('updateBackToToolsVisibility();', $script);
+        self::assertStringContainsString("window.addEventListener('pageshow', () => {", $script);
     }
 
     public function testPublicPriceSectionHeadingsUseFullWidthNavyUppercaseStyle(): void
@@ -110,6 +114,26 @@ final class PublicIndexPresentationTest extends TestCase
         self::assertStringContainsString('color: #FFFFFF;', $styles);
         self::assertStringContainsString('text-transform: uppercase;', $styles);
         self::assertStringContainsString('overflow-wrap: anywhere;', $styles);
+    }
+
+    public function testPublicHeroAndFooterCopyAndHomeLinks(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__) . '/public/index.php');
+        $styles = (string) file_get_contents(dirname(__DIR__) . '/public/assets/price.css');
+
+        self::assertStringContainsString('<h1>Услуги и цены</h1>', $source);
+        self::assertStringNotContainsString('<p class="intro">Цены носят информационный характер и могут обновляться.</p>', $source);
+        self::assertStringNotContainsString('class="source-title"', $source);
+        self::assertStringContainsString('class="footer-price-source"', $source);
+        self::assertStringContainsString('от <time datetime="<?= public_e($priceData[\'source\'][\'price_date\']) ?>">', $source);
+        self::assertSame(2, substr_count($source, '← вернуться на главную страницу'));
+        self::assertStringContainsString('<a class="price-home-link" href="https://mcv26.ru/">← вернуться на главную страницу</a>', $source);
+        self::assertStringNotContainsString('<a class="footer-home-link"', $source);
+        self::assertStringContainsString('.price-home-link {', $styles);
+        self::assertStringContainsString('text-align: right;', $styles);
+        self::assertStringContainsString('background: #004e87;', $styles);
+        self::assertStringContainsString('padding: 30px 0;', $styles);
+        self::assertStringContainsString('font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;', $styles);
     }
 
     public function testSectionNavigationIsSidebarAroundMainPriceContent(): void
@@ -125,9 +149,15 @@ final class PublicIndexPresentationTest extends TestCase
         self::assertStringContainsString('max-height: calc(100vh - 24px);', $styles);
         self::assertStringContainsString('flex-wrap: wrap;', $styles);
         self::assertStringContainsString('font-size: 11px;', $styles);
-        self::assertStringContainsString('background: #EFEFD0;', $styles);
+        self::assertStringContainsString('background: #f9f8e1;', $styles);
         self::assertStringContainsString('text-transform: uppercase;', $styles);
         self::assertStringContainsString('overflow-wrap: anywhere;', $styles);
+        self::assertStringContainsString('.section-nav a.is-active', $styles);
+        self::assertStringContainsString('background: #f9f8e1;', $styles);
+        self::assertStringContainsString('background: #ffd3b2;', $styles);
+        self::assertStringContainsString('IntersectionObserver', $script = (string) file_get_contents(dirname(__DIR__) . '/public/assets/price.js'));
+        self::assertStringContainsString("aria-current', 'location'", $script);
+        self::assertStringContainsString('setActiveSectionFromPosition();', $script);
         self::assertStringContainsString('@media (max-width: 900px)', $styles);
     }
 }
