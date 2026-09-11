@@ -52,11 +52,20 @@ final class DraftEditorPageTest extends TestCase
     public function testPublishActionUsesSavedRevisionAndExistingPublicationEndpoint(): void
     {
         $script = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin-draft.js');
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin.css');
 
         self::assertStringContainsString("fetch(appUrl('publish-version.php')", $script);
         self::assertStringContainsString('expected_revision: editor.dataset.revision', $script);
         self::assertStringContainsString('expected_published_version_id: editor.dataset.publishedVersionId || null', $script);
         self::assertStringContainsString('publishButton.disabled = unsaved > 0 || invalid > 0 || isSaving;', $script);
+        self::assertStringContainsString('const publicationBlockedByUnsavedChanges = unsaved > 0 && invalid === 0 && !isSaving;', $script);
+        self::assertStringContainsString("publishTooltip.dataset.tooltipActive = String(publicationBlockedByUnsavedChanges);", $script);
+        self::assertStringContainsString("publishButton.setAttribute('aria-describedby', 'draft-publish-unsaved-tooltip');", $script);
+        self::assertStringContainsString("publishButton.removeAttribute('aria-describedby');", $script);
+        self::assertStringContainsString('publishTooltip.hidden = alreadyPublished;', $script);
+        self::assertStringContainsString('publishTooltip.hidden = true;', $script);
+        self::assertStringContainsString('.draft-publish-tooltip[data-tooltip-active="true"]:hover .draft-publish-tooltip-message', $css);
+        self::assertStringNotContainsString('.draft-publish-tooltip:hover .draft-publish-tooltip-message', $css);
         self::assertStringContainsString('saveButton.hidden = unsaved === 0 && invalid === 0;', $script);
         self::assertStringContainsString('downloadButton.hidden = unsaved > 0 || invalid > 0 || isSaving;', $script);
         self::assertStringContainsString('resetButton.hidden = (unsaved === 0 && invalid === 0) || isSaving;', $script);

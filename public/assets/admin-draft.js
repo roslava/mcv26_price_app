@@ -33,6 +33,7 @@
     }));
     const saveButton = editor.querySelector('[data-save-prices]');
     const publishButton = editor.querySelector('[data-publish-prices]');
+    const publishTooltip = editor.querySelector('[data-publish-tooltip]');
     const publicationState = editor.querySelector('[data-publication-state]');
     const draftStatus = editor.querySelector('[data-draft-status]');
     const downloadButton = editor.querySelector('[data-download-xlsx]');
@@ -214,8 +215,16 @@
         saveButton.disabled = unsaved === 0 || invalid > 0 || isSaving;
         saveButton.hidden = unsaved === 0 && invalid === 0;
         publishButton.disabled = unsaved > 0 || invalid > 0 || isSaving;
+        const publicationBlockedByUnsavedChanges = unsaved > 0 && invalid === 0 && !isSaving;
+        publishTooltip.dataset.tooltipActive = String(publicationBlockedByUnsavedChanges);
+        if (publicationBlockedByUnsavedChanges) {
+            publishButton.setAttribute('aria-describedby', 'draft-publish-unsaved-tooltip');
+        } else {
+            publishButton.removeAttribute('aria-describedby');
+        }
         const alreadyPublished = isCurrentPublishedClone && changed === 0 && unsaved === 0 && invalid === 0;
         publishButton.hidden = alreadyPublished;
+        publishTooltip.hidden = alreadyPublished;
         publicationState.hidden = !alreadyPublished;
         draftStatus.textContent = alreadyPublished ? 'Опубликован' : 'Черновик';
         draftStatus.className = alreadyPublished ? 'status-published-badge' : 'status-draft';
@@ -225,6 +234,7 @@
             summary.state.textContent = 'Прайс опубликован.';
             summary.state.classList.remove('has-errors', 'is-modified');
             publishButton.hidden = true;
+            publishTooltip.hidden = true;
             saveButton.hidden = true;
             resetButton.hidden = true;
             downloadButton.hidden = false;

@@ -172,8 +172,11 @@ final class DraftEditorPage
                 <div class="draft-actions">
                     <button type="button" class="button-secondary" data-reset-prices hidden>Отменить изменения</button>
                     <button type="button" class="button-secondary" data-download-xlsx>Скачать Excel</button>
-                    <button type="button" class="button-secondary" data-save-prices disabled hidden>Сохранить</button>
-                    <button type="button" data-publish-prices<?= $isCurrentPublishedClone && $changedCount === 0 ? ' hidden' : '' ?>>Опубликовать прайс</button>
+                    <button type="button" class="button-secondary" data-save-prices disabled hidden>Сохранить изменения</button>
+                    <span class="draft-publish-tooltip" data-publish-tooltip<?= $isCurrentPublishedClone && $changedCount === 0 ? ' hidden' : '' ?>>
+                        <button type="button" data-publish-prices>Опубликовать прайс</button>
+                        <span id="draft-publish-unsaved-tooltip" class="draft-publish-tooltip-message" role="tooltip">Прайс можно опубликовать только после того, как все изменения будут сохранены.</span>
+                    </span>
                 </div>
             </aside>
             </div>
