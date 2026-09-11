@@ -120,6 +120,10 @@ final class PriceImporter
                 continue;
             }
 
+            if ($this->isExportChangeNote($values)) {
+                continue;
+            }
+
             if ($this->isSection($values)) {
                 $sections[] = ['name' => $values['A'], 'items' => []];
                 $currentSection = array_key_last($sections);
@@ -222,6 +226,19 @@ final class PriceImporter
             }
         }
         return true;
+    }
+
+    /** @param array<string, mixed> $values */
+    private function isExportChangeNote(array $values): bool
+    {
+        return is_string($values['A'])
+            && (
+                $values['A'] === 'Цветом выделены цены, изменённые в этой редакции прайса.'
+                || preg_match('/^Выделены цены, которые изменялись в течение \d{4} года\.$/Du', $values['A']) === 1
+            )
+            && $values['B'] === null
+            && $values['C'] === null
+            && $values['D'] === null;
     }
 
     /** @param array<string, mixed> $values */

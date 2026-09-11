@@ -198,8 +198,15 @@ final class AdminIndexPresentationTest extends TestCase
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/src/admin_bootstrap.php');
 
         self::assertStringContainsString("AppUrl::assetPath('mcv26_logo_h.png')", $source);
+        self::assertStringContainsString('<picture class="site-logo-picture">', $source);
+        self::assertStringContainsString('<source media="(max-width: 1100px)" srcset="https://storage.yandexcloud.net/mcv26/mcv26_sqare_logo.jpg">', $source);
+        self::assertStringContainsString("img-src 'self' data: https://storage.yandexcloud.net;", $source);
         self::assertStringContainsString('alt="Медицинский Центр Власова"', $source);
         self::assertStringNotContainsString('class="brand-mark"', $source);
+
+        $styles = (string) file_get_contents(dirname(__DIR__, 2) . '/public/assets/admin.css');
+        self::assertStringContainsString("@media (max-width: 1100px) {\n    .site-logo { width: 48px; max-width: none; height: 48px; object-fit: contain; }", $styles);
+        self::assertStringContainsString("@media (max-width: 620px) {\n    .site-logo { width: 38px; height: 38px; }", $styles);
     }
 
     public function testLogoutIsRenderedInTheBrandHeader(): void
@@ -209,7 +216,7 @@ final class AdminIndexPresentationTest extends TestCase
         $header = $this->between($bootstrap, '<header class="site-header">', '</header>');
 
         self::assertStringContainsString('class="site-header-brand"', $header);
-        self::assertStringContainsString('Управление прайс-листом', $header);
+        self::assertStringNotContainsString('Управление прайс-листом', $header);
         self::assertStringContainsString('class="site-header-logout"', $header);
         self::assertStringContainsString("AppUrl::adminPath('logout.php')", $header);
         self::assertStringContainsString('>Выйти</button>', $header);

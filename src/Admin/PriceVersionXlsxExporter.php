@@ -19,9 +19,11 @@ final class PriceVersionXlsxExporter
 {
     private const UNDATED_FILENAME = 'mcv26_price_undated.xlsx';
     private const BASE_TITLE = 'Прайс ООО «Медицинский Центр Власова»';
+    private const CHANGED_PRICE_FILL = 'FFF3CD';
 
-    public function __construct(private readonly DatabasePriceRepository $repository)
-    {
+    public function __construct(
+        private readonly DatabasePriceRepository $repository
+    ) {
     }
 
     /** @return array{filename: string, title: string, price_date: string|null, categories: int, services: int} */
@@ -63,6 +65,10 @@ final class PriceVersionXlsxExporter
                         self::minorToDecimal((int) $service['current_price_minor']),
                         DataType::TYPE_NUMERIC
                     );
+                    if ((int) $service['current_price_minor'] !== (int) $service['imported_price_minor']) {
+                        $sheet->getStyle("D{$row}")->getFill()->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()->setRGB(self::CHANGED_PRICE_FILL);
+                    }
                     $serviceCount++;
                     $row++;
                 }
@@ -72,6 +78,15 @@ final class PriceVersionXlsxExporter
             }
 
             $lastRow = $row - 1;
+            $noteRow = $row + 1;
+            $sheet->mergeCells("A{$noteRow}:D{$noteRow}");
+            $sheet->setCellValueExplicit(
+                "A{$noteRow}",
+                'Цветом выделены цены, изменённые в этой редакции прайса.',
+                DataType::TYPE_STRING
+            );
+            $sheet->getStyle("A{$noteRow}:D{$noteRow}")->getFont()->setItalic(true)->setSize(9)
+                ->getColor()->setRGB('667085');
             $sheet->getStyle('A1:D1')->getFont()->setBold(true)->setSize(14);
             $sheet->getStyle('A1:D1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('A2:D2')->applyFromArray([

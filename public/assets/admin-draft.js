@@ -6,13 +6,23 @@
     const basePath = document.querySelector('[data-admin-base-path]')?.dataset.adminBasePath || '/admin/';
     const appUrl = (path) => `${basePath.replace(/\/$/, '')}/${String(path).replace(/^\/+/, '')}`;
 
-    const aboutToggle = editor.querySelector('[data-draft-about-toggle]');
-    const aboutContent = editor.querySelector('[data-draft-about-content]');
-    if (aboutToggle && aboutContent) {
-        aboutToggle.addEventListener('click', () => {
-            const expanded = aboutToggle.getAttribute('aria-expanded') !== 'true';
-            aboutToggle.setAttribute('aria-expanded', String(expanded));
-            aboutContent.hidden = !expanded;
+    const priceInfo = editor.querySelector('[data-draft-price-info]');
+    const priceInfoToggle = editor.querySelector('[data-draft-price-info-toggle]');
+    const priceInfoPanel = editor.querySelector('[data-draft-price-info-panel]');
+    const setPriceInfoOpen = (open) => {
+        if (!priceInfoToggle || !priceInfoPanel) return;
+        priceInfoToggle.setAttribute('aria-expanded', String(open));
+        priceInfoPanel.hidden = !open;
+    };
+    if (priceInfo && priceInfoToggle && priceInfoPanel) {
+        priceInfoToggle.addEventListener('click', () => {
+            setPriceInfoOpen(priceInfoToggle.getAttribute('aria-expanded') !== 'true');
+        });
+        document.addEventListener('click', (event) => {
+            if (!priceInfo.contains(event.target)) setPriceInfoOpen(false);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') setPriceInfoOpen(false);
         });
     }
 
@@ -20,9 +30,19 @@
     const rows = Array.from(editor.querySelectorAll('[data-price-row]'));
     const inputs = rows.map((row) => row.querySelector('.price-input'));
     const percentInputs = rows.map((row) => row.querySelector('.percent-input'));
+    const massPriceForm = editor.querySelector('[data-mass-price-form]');
+    const massPriceInput = editor.querySelector('[data-mass-price-percent]');
+    const massPriceApplyButton = editor.querySelector('[data-mass-price-apply]');
+    const massPriceMessage = editor.querySelector('[data-mass-price-message]');
+    const massPriceDialog = editor.querySelector('[data-mass-price-dialog]');
+    const massPriceDialogMessage = editor.querySelector('[data-mass-price-dialog-message]');
+    const massPriceCancelButton = editor.querySelector('[data-mass-price-cancel]');
+    const massPriceConfirmButton = editor.querySelector('[data-mass-price-confirm]');
     const searchInput = document.querySelector('[data-service-search]');
     const searchClear = document.querySelector('[data-service-search-clear]');
     const searchEmpty = editor.querySelector('[data-service-search-empty]');
+    const changedFilter = editor.querySelector('[data-changed-filter]');
+    const changedFilterCount = editor.querySelector('[data-changed-filter-count]');
     const categories = Array.from(editor.querySelectorAll('.draft-category'));
     const searchableRows = rows.map((row) => ({
         row,
@@ -33,7 +53,6 @@
     }));
     const saveButton = editor.querySelector('[data-save-prices]');
     const publishButton = editor.querySelector('[data-publish-prices]');
-    const publishTooltip = editor.querySelector('[data-publish-tooltip]');
     const publicationState = editor.querySelector('[data-publication-state]');
     const draftStatus = editor.querySelector('[data-draft-status]');
     const downloadButton = editor.querySelector('[data-download-xlsx]');
@@ -65,14 +84,17 @@
     let invalidCount = 0;
     let isSaving = false;
     let isPublishing = false;
-    let publicationCompleted = false;
+    let isRedirectingAfterPublish = false;
+    let changedOnly = false;
     const isCurrentPublishedClone = editor.dataset.currentPublishedClone === 'true';
 
     const filterServices = () => {
         const query = searchInput.value.trim().toLocaleLowerCase('ru-RU');
         let visibleCount = 0;
         searchableRows.forEach(({row, text}) => {
-            const matches = query === '' || text.includes(query);
+            const matchesSearch = query === '' || text.includes(query);
+            const matchesChanged = !changedOnly || hasChangedPrice(row);
+            const matches = matchesSearch && matchesChanged;
             row.hidden = !matches;
             if (matches) visibleCount++;
         });
@@ -82,12 +104,19 @@
         });
         searchClear.hidden = query === '';
         searchEmpty.hidden = visibleCount > 0;
+        searchEmpty.textContent = changedOnly && query === '' ? 'Нет изменённых позиций.' : 'Услуги не найдены';
     };
     searchInput.addEventListener('input', filterServices);
     searchClear.addEventListener('click', () => {
         searchInput.value = '';
         filterServices();
         searchInput.focus();
+    });
+    changedFilter.addEventListener('click', () => {
+        changedOnly = !changedOnly;
+        changedFilter.setAttribute('aria-pressed', String(changedOnly));
+        changedFilter.classList.toggle('is-active', changedOnly);
+        filterServices();
     });
 
     function parseMinor(text) {
@@ -97,6 +126,10 @@
         const fraction = (match[2] || '').padEnd(2, '0');
         const minor = BigInt(match[1]) * 100n + BigInt(fraction || '0');
         return minor > 0n && minor <= MAX_MINOR ? minor : null;
+    }
+
+    function hasChangedPrice(row, current = parseMinor(row.querySelector('.price-input').value)) {
+        return current !== null && current !== BigInt(row.dataset.importedMinor);
     }
 
     function decimal(minor) {
@@ -149,6 +182,56 @@
         return current > 0n && current <= MAX_MINOR ? current : null;
     }
 
+    function formattedPercent(parsedPercent) {
+        const absolute = parsedPercent.value < 0n ? -parsedPercent.value : parsedPercent.value;
+        const whole = absolute / parsedPercent.scale;
+        const fraction = String(absolute % parsedPercent.scale).padStart(String(parsedPercent.scale).length - 1, '0').replace(/0+$/, '');
+        return `${whole}${fraction ? `,${fraction}` : ''}`;
+    }
+
+    function setMassPriceMessage(message, isError = false) {
+        massPriceMessage.textContent = message;
+        massPriceMessage.classList.toggle('has-errors', isError);
+        massPriceInput.toggleAttribute('aria-invalid', isError);
+    }
+
+    function validateMassPriceChange() {
+        const parsedPercent = parsePercent(massPriceInput.value);
+        if (parsedPercent === null) {
+            setMassPriceMessage('Введите корректный процент: например, 5, 10,5 или −5.', true);
+            return null;
+        }
+        if (parsedPercent.value === 0n) {
+            setMassPriceMessage('0% не изменяет цены.');
+            return null;
+        }
+        for (let index = 0; index < rows.length; index++) {
+            const current = parseMinor(inputs[index].value);
+            if (current === null) {
+                setMassPriceMessage('Сначала исправьте некорректные цены в таблице.', true);
+                return null;
+            }
+            // Reuse the row percentage calculation and its BigInt rounding for every current price.
+            if (priceFromPercent(current, parsedPercent) === null) {
+                setMassPriceMessage('Этот процент приводит хотя бы одну цену к недопустимому значению.', true);
+                return null;
+            }
+        }
+        return parsedPercent;
+    }
+
+    function applyMassPriceChange(parsedPercent) {
+        rows.forEach((row, index) => {
+            const current = parseMinor(inputs[index].value);
+            const next = priceFromPercent(current, parsedPercent);
+            inputs[index].value = decimal(next);
+            percentInputs[index].value = percentValue(next, BigInt(row.dataset.importedMinor));
+        });
+        massPriceInput.value = '';
+        setMassPriceMessage('');
+        update();
+    }
+
     function update(percentSourceIndex = null) {
         let originalTotal = 0n;
         let currentTotal = 0n;
@@ -165,7 +248,7 @@
             const percentInput = percentInputs[index];
             const current = parseMinor(input.value);
             originalTotal += imported;
-            row.classList.remove('price-increased', 'price-decreased', 'price-unchanged', 'price-invalid');
+            row.classList.remove('price-increased', 'price-decreased', 'price-unchanged', 'price-changed', 'price-invalid');
             input.removeAttribute('aria-invalid');
             percentInput.removeAttribute('aria-invalid');
 
@@ -188,7 +271,10 @@
             } else {
                 row.classList.add('price-unchanged');
             }
-            if (current !== imported) changed++;
+            if (hasChangedPrice(row, current)) {
+                changed++;
+                row.classList.add('price-changed');
+            }
             if (current !== loaded) unsaved++;
         });
 
@@ -196,6 +282,13 @@
         hasValidUnsavedChanges = unsaved > 0;
         invalidCount = invalid;
         summary.changed.textContent = String(changed);
+        changedFilterCount.textContent = `(${changed})`;
+        changedFilter.hidden = changed === 0;
+        if (changed === 0 && changedOnly) {
+            changedOnly = false;
+            changedFilter.setAttribute('aria-pressed', 'false');
+            changedFilter.classList.remove('is-active');
+        }
         summary.increased.textContent = String(increased);
         summary.decreased.textContent = String(decreased);
         summary.original.textContent = money(originalTotal);
@@ -212,37 +305,20 @@
         summary.state.classList.toggle('has-errors', invalid > 0);
         summary.state.classList.toggle('is-modified', unsaved > 0 && invalid === 0);
         editor.classList.toggle('is-modified', unsaved > 0);
+        massPriceInput.disabled = isSaving;
+        massPriceApplyButton.disabled = isSaving;
+        massPriceConfirmButton.disabled = isSaving;
         saveButton.disabled = unsaved === 0 || invalid > 0 || isSaving;
         saveButton.hidden = unsaved === 0 && invalid === 0;
         publishButton.disabled = unsaved > 0 || invalid > 0 || isSaving;
-        const publicationBlockedByUnsavedChanges = unsaved > 0 && invalid === 0 && !isSaving;
-        publishTooltip.dataset.tooltipActive = String(publicationBlockedByUnsavedChanges);
-        if (publicationBlockedByUnsavedChanges) {
-            publishButton.setAttribute('aria-describedby', 'draft-publish-unsaved-tooltip');
-        } else {
-            publishButton.removeAttribute('aria-describedby');
-        }
         const alreadyPublished = isCurrentPublishedClone && changed === 0 && unsaved === 0 && invalid === 0;
-        publishButton.hidden = alreadyPublished;
-        publishTooltip.hidden = alreadyPublished;
+        publishButton.hidden = alreadyPublished || unsaved > 0;
         publicationState.hidden = !alreadyPublished;
         draftStatus.textContent = alreadyPublished ? 'Опубликован' : 'Черновик';
         draftStatus.className = alreadyPublished ? 'status-published-badge' : 'status-draft';
         downloadButton.hidden = unsaved > 0 || invalid > 0 || isSaving;
         resetButton.hidden = (unsaved === 0 && invalid === 0) || isSaving;
-        if (publicationCompleted) {
-            summary.state.textContent = 'Прайс опубликован.';
-            summary.state.classList.remove('has-errors', 'is-modified');
-            publishButton.hidden = true;
-            publishTooltip.hidden = true;
-            saveButton.hidden = true;
-            resetButton.hidden = true;
-            downloadButton.hidden = false;
-            publicationState.hidden = false;
-            publicationState.textContent = 'Прайс опубликован на сайте.';
-            draftStatus.textContent = 'Опубликован';
-            draftStatus.className = 'status-published-badge';
-        }
+        filterServices();
     }
 
     inputs.forEach((input, index) => {
@@ -298,6 +374,53 @@
             }
         });
         input.addEventListener('blur', () => update());
+    });
+
+    massPriceForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const parsedPercent = validateMassPriceChange();
+        if (parsedPercent === null) return;
+        const direction = parsedPercent.value > 0n ? 'увеличены' : 'уменьшены';
+        massPriceDialogMessage.textContent = `Все текущие цены будут ${direction} на ${formattedPercent(parsedPercent)}%. Будет изменено ${rows.length} позиций.`;
+        massPriceDialog.showModal();
+    });
+
+    function closeMassPriceDialog() {
+        if (!massPriceDialog.open || massPriceDialog.classList.contains('is-closing')) return;
+
+        massPriceDialog.classList.add('is-closing');
+        let closeTimer;
+        const finishClose = (event) => {
+            if (event && (event.target !== massPriceDialog || event.animationName !== 'mass-price-dialog-out')) return;
+            window.clearTimeout(closeTimer);
+            massPriceDialog.classList.remove('is-closing');
+            if (massPriceDialog.open) massPriceDialog.close();
+        };
+        massPriceDialog.addEventListener('animationend', finishClose, {once: true});
+        closeTimer = window.setTimeout(finishClose, 220);
+    }
+
+    massPriceCancelButton.addEventListener('click', closeMassPriceDialog);
+    massPriceDialog.addEventListener('cancel', (event) => {
+        event.preventDefault();
+        closeMassPriceDialog();
+    });
+    massPriceDialog.addEventListener('close', () => massPriceApplyButton.focus());
+    massPriceDialog.addEventListener('click', (event) => {
+        if (event.target !== massPriceDialog) return;
+        const bounds = massPriceDialog.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            closeMassPriceDialog();
+        }
+    });
+    massPriceConfirmButton.addEventListener('click', () => {
+        const parsedPercent = validateMassPriceChange();
+        if (parsedPercent === null) {
+            closeMassPriceDialog();
+            return;
+        }
+        applyMassPriceChange(parsedPercent);
+        closeMassPriceDialog();
     });
 
     resetButton.addEventListener('click', () => {
@@ -437,10 +560,9 @@
                 saveMessage.classList.add('has-errors');
                 return;
             }
-            publicationCompleted = true;
-            inputs.forEach((input) => { input.disabled = true; });
-            publishDialog.close();
-            saveMessage.textContent = '';
+            isRedirectingAfterPublish = true;
+            window.location.assign(appUrl(''));
+            return;
         } catch (error) {
             const message = 'Сеть недоступна. Прайс не опубликован.';
             publishDialogMessage.textContent = message;
@@ -448,6 +570,7 @@
             saveMessage.textContent = message;
             saveMessage.classList.add('has-errors');
         } finally {
+            if (isRedirectingAfterPublish) return;
             isPublishing = false;
             isSaving = false;
             publishConfirmButton.disabled = false;

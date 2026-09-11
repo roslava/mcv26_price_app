@@ -49,6 +49,7 @@ admin_page_start(
     null,
     admin_url(''),
     'Вернуться на главную страницу админки',
+    true,
     true
 );
 echo $page->render($version, $adminSession->csrfToken(), $publishedVersionId);

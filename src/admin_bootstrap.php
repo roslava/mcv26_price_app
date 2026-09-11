@@ -12,7 +12,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
-header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https://storage.yandexcloud.net; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 require dirname(__DIR__) . '/src/load_env.php';
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -52,7 +52,8 @@ function admin_page_start(
     ?string $logoutCsrfToken = null,
     ?string $headerLinkHref = null,
     ?string $headerLinkLabel = null,
-    bool $showPriceSearch = false
+    bool $showPriceSearch = false,
+    bool $includeFontAwesome = false
 ): void
 {
     ?>
@@ -63,16 +64,22 @@ function admin_page_start(
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title><?= admin_e($title) ?> — MCV26</title>
         <link rel="stylesheet" href="<?= admin_e(AppUrl::assetPath('admin.css')) ?>">
+        <?php if ($includeFontAwesome): ?>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+        <?php endif; ?>
     </head>
     <body>
     <main data-admin-base-path="<?= admin_e(AppUrl::adminBasePath()) ?>" class="admin-shell<?= $shellClass !== '' ? ' ' . admin_e($shellClass) : '' ?>">
         <header class="site-header">
             <div class="site-header-brand">
-                <img class="site-logo" src="<?= admin_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
-                <span>Управление прайс-листом</span>
+                <picture class="site-logo-picture">
+                    <source media="(max-width: 1100px)" srcset="https://storage.yandexcloud.net/mcv26/mcv26_sqare_logo.jpg">
+                    <img class="site-logo" src="<?= admin_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
+                </picture>
             </div>
             <?php if ($showPriceSearch): ?>
                 <div class="site-header-search" role="search">
+                    <i class="fa-solid fa-magnifying-glass site-header-search-icon" aria-hidden="true"></i>
                     <input type="search" placeholder="Поиск по услугам" aria-label="Поиск по услугам" autocomplete="off" data-service-search>
                     <button type="button" aria-label="Очистить поиск" title="Очистить поиск" data-service-search-clear hidden>×</button>
                 </div>

@@ -14,7 +14,9 @@ use Mcv26\Price\Exception\PriceVersionExportException;
 use Mcv26\Price\PriceImporter;
 use Mcv26\Price\UploadValidator;
 use PDO;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -87,6 +89,7 @@ final class PriceVersionXlsxExporterIntegrationTest extends TestCase
         self::assertCount(23, $sheet->getMergeCells());
         self::assertSame('A3:D3', $sheet->getMergeCells()['A3:D3']);
         self::assertSame('470.00', sprintf('%.2f', $sheet->getCell('D4')->getValue()));
+        self::assertSame(DataType::TYPE_NUMERIC, $sheet->getCell('D4')->getDataType());
         $book->disconnectWorksheets();
 
         $parsed = (new PriceImporter(new UploadValidator()))->import($path, $result['filename']);
@@ -108,6 +111,87 @@ final class PriceVersionXlsxExporterIntegrationTest extends TestCase
                 && str_contains($warning['message'], '269')
         ));
         self::assertCount(1, $duplicateWarnings);
+    }
+
+    public function testHighlightsOnlyPricesChangedFromTheirImportedValues(): void
+    {
+        $versionId = $this->createRealVersion();
+        $serviceIds = array_map('intval', $this->pdo->query(
+            'SELECT id FROM services ORDER BY id LIMIT 5'
+        )->fetchAll(PDO::FETCH_COLUMN));
+        $update = $this->pdo->prepare('UPDATE services SET current_price_minor=? WHERE id=?');
+        $update->execute([37100, $serviceIds[0]]);
+        $update->execute([37200, $serviceIds[3]]);
+        $audit = $this->pdo->prepare(
+            'INSERT INTO price_changes '
+            . '(version_id, service_id, old_price_minor, new_price_minor, changed_at, changed_by) '
+            . 'VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $audit->execute([$versionId, $serviceIds[0], 37000, 37100, '2026-01-01 00:00:00.000000', 'editor']);
+        $audit->execute([$versionId, $serviceIds[1], 37000, 37100, '2025-12-31 23:59:59.000000', 'editor']);
+        $audit->execute([$versionId, $serviceIds[2], 37000, 37100, '2026-03-01 00:00:00.000000', 'editor']);
+        $audit->execute([$versionId, $serviceIds[2], 37100, 37000, '2026-03-02 00:00:00.000000', 'editor']);
+        $audit->execute([$versionId, $serviceIds[3], 37000, 37100, '2026-02-01 00:00:00.000000', 'editor']);
+        $audit->execute([$versionId, $serviceIds[3], 37100, 37200, '2026-08-01 00:00:00.000000', 'editor']);
+        $audit->execute([$versionId, $serviceIds[4], 37000, 37000, '2026-03-01 00:00:00.000000', 'technical']);
+
+        $path = $this->temporaryXlsx();
+        $this->exporter->export($versionId, $path);
+
+        $book = IOFactory::load($path);
+        $sheet = $book->getActiveSheet();
+        self::assertSame(Fill::FILL_SOLID, $sheet->getStyle('D4')->getFill()->getFillType());
+        self::assertSame('FFF3CD', $sheet->getStyle('D4')->getFill()->getStartColor()->getRGB());
+        self::assertSame(Fill::FILL_NONE, $sheet->getStyle('D5')->getFill()->getFillType());
+        self::assertSame(Fill::FILL_NONE, $sheet->getStyle('D6')->getFill()->getFillType());
+        self::assertSame(Fill::FILL_SOLID, $sheet->getStyle('D7')->getFill()->getFillType());
+        self::assertSame(Fill::FILL_NONE, $sheet->getStyle('D8')->getFill()->getFillType());
+        self::assertSame(Fill::FILL_NONE, $sheet->getStyle('A4')->getFill()->getFillType());
+        self::assertSame(DataType::TYPE_NUMERIC, $sheet->getCell('D4')->getDataType());
+        self::assertSame('Цветом выделены цены, изменённые в этой редакции прайса.', $sheet->getCell('A297')->getValue());
+        $book->disconnectWorksheets();
+
+        $parsed = (new PriceImporter(new UploadValidator()))->import($path);
+        self::assertSame(['sections' => 22, 'items' => 271], $parsed['stats']);
+    }
+
+    public function testReimportedExportUsesTheExportedPricesAsItsNewBaseline(): void
+    {
+        $versionId = $this->createRealVersion();
+        $firstServiceId = (int) $this->pdo->query('SELECT id FROM services ORDER BY id LIMIT 1')->fetchColumn();
+        $this->pdo->prepare('UPDATE services SET current_price_minor=110000 WHERE id=?')->execute([$firstServiceId]);
+
+        $firstExport = $this->temporaryXlsx();
+        $this->exporter->export($versionId, $firstExport);
+        $firstBook = IOFactory::load($firstExport);
+        self::assertSame(Fill::FILL_SOLID, $firstBook->getActiveSheet()->getStyle('D4')->getFill()->getFillType());
+        self::assertSame(DataType::TYPE_NUMERIC, $firstBook->getActiveSheet()->getCell('D4')->getDataType());
+        $firstBook->disconnectWorksheets();
+
+        $reimportedData = (new PriceImporter(new UploadValidator()))->import($firstExport, 'reimported.xlsx');
+        self::assertSame(110000, $reimportedData['sections'][0]['items'][0]['price_minor']);
+        $reimportedVersionId = $this->createVersionFromImportedData($reimportedData);
+
+        $secondExport = $this->temporaryXlsx();
+        $this->exporter->export($reimportedVersionId, $secondExport);
+        $secondBook = IOFactory::load($secondExport);
+        self::assertSame(Fill::FILL_NONE, $secondBook->getActiveSheet()->getStyle('D4')->getFill()->getFillType());
+        $secondBook->disconnectWorksheets();
+
+        $reimportedFirstServiceId = (int) $this->pdo->query(
+            'SELECT s.id FROM services s JOIN categories c ON c.id=s.category_id '
+            . 'WHERE c.price_version_id=' . $reimportedVersionId . ' ORDER BY c.position, s.position LIMIT 1'
+        )->fetchColumn();
+        $this->pdo->prepare('UPDATE services SET current_price_minor=120000 WHERE id=?')
+            ->execute([$reimportedFirstServiceId]);
+
+        $thirdExport = $this->temporaryXlsx();
+        $this->exporter->export($reimportedVersionId, $thirdExport);
+        $thirdBook = IOFactory::load($thirdExport);
+        self::assertSame(Fill::FILL_SOLID, $thirdBook->getActiveSheet()->getStyle('D4')->getFill()->getFillType());
+        self::assertSame('1200.00', sprintf('%.2f', $thirdBook->getActiveSheet()->getCell('D4')->getValue()));
+        self::assertSame(DataType::TYPE_NUMERIC, $thirdBook->getActiveSheet()->getCell('D4')->getDataType());
+        $thirdBook->disconnectWorksheets();
     }
 
     #[DataProvider('immutableStatuses')]
@@ -219,6 +303,32 @@ final class PriceVersionXlsxExporterIntegrationTest extends TestCase
         }
         $statement = $this->pdo->prepare('UPDATE price_versions SET status=?, revision=? WHERE id=?');
         $statement->execute([$status, $revision, $versionId]);
+        return $versionId;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function createVersionFromImportedData(array $data): int
+    {
+        $versionId = $this->repository->createVersion([
+            'title' => $data['source']['title'],
+            'price_date' => $data['source']['price_date'],
+            'original_filename' => 'reimported.xlsx',
+            'stored_xlsx_name' => 'reimported.xlsx',
+            'imported_at' => '2026-09-11 00:00:00.000000',
+        ]);
+        foreach ($data['sections'] as $categoryOffset => $section) {
+            $categoryId = $this->repository->createCategory($versionId, $categoryOffset + 1, $section['name']);
+            foreach ($section['items'] as $serviceOffset => $item) {
+                $this->repository->createService($categoryId, [
+                    'position' => $serviceOffset + 1,
+                    'service_number' => $item['number'],
+                    'code' => $item['code'],
+                    'name' => $item['name'],
+                    'imported_price_minor' => $item['price_minor'],
+                    'current_price_minor' => $item['price_minor'],
+                ]);
+            }
+        }
         return $versionId;
     }
 
