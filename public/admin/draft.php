@@ -48,12 +48,15 @@ admin_page_start(
     'admin-shell-wide',
     null,
     admin_url(''),
-    'Вернуться на главную страницу админки',
+    'Закончить редактирование',
+    true,
     true,
     true
 );
 echo $page->render($version, $adminSession->csrfToken(), $publishedVersionId);
 ?>
+<script src="<?= admin_e(AppUrl::assetPath('draft-recovery.js')) ?>" defer></script>
 <script src="<?= admin_e(AppUrl::assetPath('admin-draft.js')) ?>" defer></script>
+<script src="<?= admin_e(AppUrl::assetPath('draft-column-resize.js')) ?>" defer></script>
 <?php
 admin_page_end();

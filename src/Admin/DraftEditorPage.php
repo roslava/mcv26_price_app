@@ -65,6 +65,23 @@ final class DraftEditorPage
              data-published-version-id="<?= self::e($publishedVersionId ?? '') ?>"
              data-current-published-clone="<?= $isCurrentPublishedClone ? 'true' : 'false' ?>"
              data-csrf-token="<?= self::e($csrfToken) ?>">
+            <p class="notice error" data-recovery-notice role="status" hidden></p>
+            <dialog class="structure-dialog" data-recovery-dialog aria-labelledby="recovery-title">
+                <h2 id="recovery-title">Восстановление изменений</h2>
+                <p data-recovery-message></p>
+                <div class="structure-dialog-actions">
+                    <button type="button" class="button-secondary" data-recovery-discard>Удалить локальную копию</button>
+                    <button type="button" data-recovery-restore>Восстановить изменения</button>
+                </div>
+            </dialog>
+            <dialog class="structure-dialog" data-delete-dialog aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-description">
+                <h2 id="delete-dialog-title" data-delete-title>Подтверждение удаления</h2>
+                <p id="delete-dialog-description" data-delete-description></p>
+                <div class="structure-dialog-actions">
+                    <button type="button" class="button-secondary" data-delete-cancel autofocus>Отмена</button>
+                    <button type="button" data-delete-confirm>Удалить</button>
+                </div>
+            </dialog>
             <dialog class="export-dialog" data-export-dialog>
                 <form method="dialog">
                     <h2>Скачать Excel</h2>
@@ -77,6 +94,17 @@ final class DraftEditorPage
                 </form>
             </dialog>
 
+            <dialog class="exit-dialog" data-exit-dialog role="dialog" aria-modal="true" aria-labelledby="exit-dialog-title" aria-describedby="exit-dialog-description exit-dialog-message">
+                <h2 id="exit-dialog-title">Сохранить изменения перед выходом?</h2>
+                <p id="exit-dialog-description">Выберите, что сделать с несохранёнными изменениями.</p>
+                <p class="exit-dialog-message" id="exit-dialog-message" data-exit-dialog-message role="alert" hidden></p>
+                <div class="exit-dialog-actions">
+                    <button type="button" data-exit-save>Сохранить и выйти</button>
+                    <button type="button" class="button-secondary" data-exit-discard>Выйти без сохранения</button>
+                    <button type="button" class="button-secondary" data-exit-cancel autofocus>Отмена</button>
+                </div>
+            </dialog>
+
             <dialog class="publish-dialog" data-publish-dialog role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title">
                 <h2 id="publish-dialog-title">Опубликовать прайс?</h2>
                 <p>Сохранённая версия станет доступна на публичной странице.</p>
@@ -85,6 +113,20 @@ final class DraftEditorPage
                     <button type="button" class="button-secondary" data-publish-cancel autofocus>Отмена</button>
                     <button type="button" data-publish-confirm>Опубликовать</button>
                 </div>
+            </dialog>
+
+            <dialog class="mass-price-entry-dialog" data-mass-price-entry-dialog role="dialog" aria-modal="true" aria-labelledby="mass-price-entry-title" aria-describedby="mass-price-entry-note">
+                <form data-mass-price-form>
+                    <h2 id="mass-price-entry-title">Изменить все цены на %</h2>
+                    <label for="mass-price-percent">Процент изменения</label>
+                    <input id="mass-price-percent" type="text" class="mass-price-percent-input" inputmode="decimal" autocomplete="off" aria-describedby="mass-price-entry-note mass-price-message" data-mass-price-percent autofocus>
+                    <p id="mass-price-entry-note" class="mass-price-entry-note">Укажите положительный или отрицательный процент.</p>
+                    <p class="mass-price-message" id="mass-price-message" data-mass-price-message role="alert" aria-live="polite"></p>
+                    <div class="mass-price-entry-actions">
+                        <button type="button" class="button-secondary" data-mass-price-entry-cancel>Отмена</button>
+                        <button type="submit" data-mass-price-apply>Применить</button>
+                    </div>
+                </form>
             </dialog>
 
             <dialog class="mass-price-dialog" data-mass-price-dialog role="dialog" aria-modal="true" aria-labelledby="mass-price-dialog-title" aria-describedby="mass-price-dialog-message mass-price-dialog-note">
@@ -97,55 +139,96 @@ final class DraftEditorPage
                 </div>
             </dialog>
 
-            <div class="draft-editor-layout">
-                <div class="draft-table-area">
-                    <div class="draft-table-tools" aria-label="Инструменты прайса">
-                        <form class="draft-mass-price-control" data-mass-price-form>
-                            <input id="mass-price-percent"
-                                   type="text"
-                                   class="mass-price-percent-input"
-                                   inputmode="decimal"
-                                   autocomplete="off"
-                                   placeholder="Изменить все цены на %"
-                                   aria-label="Изменить все цены на %"
-                                   aria-describedby="mass-price-message"
-                                   data-mass-price-percent>
-                            <button type="submit" data-mass-price-apply>Применить</button>
-                            <p class="mass-price-message" id="mass-price-message" data-mass-price-message role="status" aria-live="polite"></p>
-                        </form>
-                        <div class="draft-price-info" data-draft-price-info>
-                            <button type="button" class="button-secondary draft-price-info-toggle" aria-expanded="false" aria-controls="draft-price-info-panel" data-draft-price-info-toggle>
-                                <span>Информация о прайсе</span><span class="draft-price-info-chevron" aria-hidden="true"></span>
-                            </button>
-                            <div id="draft-price-info-panel" class="draft-price-info-panel" data-draft-price-info-panel hidden>
-                                <div class="draft-price-info-row"><span class="meta-label">Название:</span><span class="meta-value"><?= self::e($version['title']) ?></span></div>
-                                <div class="draft-price-info-row"><span class="meta-label">Версия:</span><span class="meta-value">№<?= self::e($version['id']) ?></span></div>
-                                <div class="draft-price-info-row"><span class="meta-label">Дата прайса:</span><span class="meta-value"><?= self::e($version['price_date'] ?? 'Не указана') ?></span></div>
-                                <div class="draft-price-info-row"><span class="meta-label">Исходный файл:</span><span class="meta-value"><?= self::e($version['original_filename']) ?></span></div>
-                                <div class="draft-price-info-row"><span class="meta-label">Услуг:</span><span class="meta-value"><?= $serviceCount ?></span></div>
-                            </div>
-                        </div>
-                        <button type="button" class="button-secondary draft-changed-filter" data-changed-filter aria-pressed="false"<?= $changedCount === 0 ? ' hidden' : '' ?>>
-                            <i class="fa-regular fa-eye-slash draft-changed-filter-icon" aria-hidden="true"></i>
-                            <span>Отображать только изменённые <span data-changed-filter-count>(<?= $changedCount ?>)</span></span>
+            <dialog class="structure-dialog" data-service-dialog>
+                <form method="dialog" data-service-form>
+                    <h2>Добавить услугу</h2>
+                    <input type="hidden" data-service-category-id>
+                    <p class="structure-dialog-category" data-service-category-name></p>
+                    <label>№ услуги<input type="number" min="1" step="1" required data-new-service-number></label>
+                    <label>Код услуги<input type="text" maxlength="191" required data-new-service-code></label>
+                    <label>Наименование услуги<input type="text" maxlength="1024" required data-new-service-name></label>
+                    <label>Цена, ₽<input type="text" inputmode="decimal" required data-new-service-price></label>
+                    <p class="structure-dialog-error" data-service-dialog-error role="alert"></p>
+                    <div class="structure-dialog-actions">
+                        <button type="button" class="button-secondary" data-service-cancel>Отмена</button>
+                        <button type="submit">Добавить</button>
+                    </div>
+                </form>
+            </dialog>
+
+            <dialog class="structure-dialog" data-category-dialog>
+                <form method="dialog" data-category-form>
+                    <h2>Добавить раздел</h2>
+                    <label>Название раздела<input type="text" maxlength="512" required data-new-category-name></label>
+                    <fieldset>
+                        <legend>Первая услуга</legend>
+                        <label>№ услуги<input type="number" min="1" step="1" required data-new-category-service-number></label>
+                        <label>Код услуги<input type="text" maxlength="191" required data-new-category-service-code></label>
+                        <label>Наименование услуги<input type="text" maxlength="1024" required data-new-category-service-name></label>
+                        <label>Цена, ₽<input type="text" inputmode="decimal" required data-new-category-service-price></label>
+                    </fieldset>
+                    <p class="structure-dialog-error" data-category-dialog-error role="alert"></p>
+                    <div class="structure-dialog-actions">
+                        <button type="button" class="button-secondary" data-category-cancel>Отмена</button>
+                        <button type="submit">Добавить</button>
+                    </div>
+                </form>
+            </dialog>
+
+            <div class="draft-table-area">
+                <dialog class="draft-price-info-dialog" aria-labelledby="draft-price-info-title" data-draft-price-info-dialog>
+                    <h2 id="draft-price-info-title">Информация о прайсе</h2>
+                    <div class="draft-price-info-row"><span class="meta-label">Название:</span><span class="meta-value"><?= self::e($version['title']) ?></span></div>
+                    <div class="draft-price-info-row"><span class="meta-label">Версия:</span><span class="meta-value">№<?= self::e($version['id']) ?></span></div>
+                    <div class="draft-price-info-row"><span class="meta-label">Дата прайса:</span><span class="meta-value"><?= self::e($version['price_date'] ?? 'Не указана') ?></span></div>
+                    <div class="draft-price-info-row"><span class="meta-label">Исходный файл:</span><span class="meta-value"><?= self::e($version['original_filename']) ?></span></div>
+                    <div class="draft-price-info-row"><span class="meta-label">Услуг:</span><span class="meta-value"><?= $serviceCount ?></span></div>
+                    <div class="draft-price-info-actions">
+                        <button type="button" data-draft-price-info-close>Закрыть</button>
+                    </div>
+                </dialog>
+                <div class="draft-editor-controls">
+                    <section class="draft-summary" aria-label="Сводка изменений" data-summary-section<?= $changedCount === 0 ? ' hidden' : '' ?>>
+                        <details class="draft-summary-details"><summary>Сводка изменений</summary>
+                        <dl class="draft-summary-list">
+                            <div class="draft-stat draft-stat-increased" data-summary-increased-row<?= $increasedCount === 0 ? ' hidden' : '' ?>><dt>Повышено</dt><span class="leader" aria-hidden="true"></span><dd class="change-positive" data-summary-increased><?= $increasedCount ?></dd></div>
+                            <div class="draft-stat draft-stat-decreased" data-summary-decreased-row<?= $decreasedCount === 0 ? ' hidden' : '' ?>><dt>Снижено</dt><span class="leader" aria-hidden="true"></span><dd class="change-negative" data-summary-decreased><?= $decreasedCount ?></dd></div>
+                            <div class="draft-stat draft-stat-original"><dt>Исходная сумма</dt><span class="leader" aria-hidden="true"></span><dd data-summary-original><?= self::money($originalTotal) ?></dd></div>
+                            <div class="draft-stat draft-stat-current"><dt>Текущая сумма</dt><span class="leader" aria-hidden="true"></span><dd data-summary-current><?= self::money($currentTotal) ?></dd></div>
+                            <div class="draft-stat draft-stat-percent" data-summary-percent-row<?= $changedCount === 0 ? ' hidden' : '' ?>><dt>Общее изменение цен</dt><span class="leader" aria-hidden="true"></span><dd data-summary-percent>0%</dd></div>
+                        </dl>
+                        </details>
+                    </section>
+                    <div class="draft-actions">
+                        <button type="button" class="button-secondary draft-reset-action" data-reset-prices hidden>Отменить изменения</button>
+                        <button type="button" class="button-secondary draft-save-action" data-save-prices disabled hidden>Сохранить изменения</button>
+                        <button type="button" data-publish-prices<?= $isCurrentPublishedClone && $changedCount === 0 ? ' hidden' : '' ?>>
+                            <i class="fa-solid fa-globe draft-action-icon" aria-hidden="true"></i>
+                            <span>Опубликовать прайс</span>
                         </button>
                     </div>
-                    <div class="draft-table-wrap">
-                        <table class="draft-table">
+                    <p class="draft-save-message" data-save-message role="status" aria-live="polite"></p>
+                </div>
+                <div class="draft-table-wrap" tabindex="0" role="region" aria-label="Таблица услуг">
+                    <table class="draft-table">
                     <thead>
                     <tr>
                         <th scope="col">№</th>
-                        <th scope="col">Код услуги</th>
+                        <th scope="col">Код</th>
                         <th scope="col">Наименование услуги</th>
-                        <th scope="col">Импортная цена</th>
+                        <th scope="col">Начальная цена</th>
                         <th scope="col">Текущая цена</th>
-                        <th scope="col">Изменение, %</th>
+                        <th scope="col">+/- %</th>
+                        <th scope="col" aria-label="Действия"></th>
                     </tr>
                     </thead>
                     <?php foreach ($version['categories'] as $category): ?>
-                        <tbody class="draft-category">
+                        <tbody class="draft-category" data-category-id="<?= self::e((string) ($category['id'] ?? '')) ?>" data-category-name="<?= self::e($category['name']) ?>">
                         <tr class="category-row">
-                            <th colspan="6" scope="rowgroup"><?= self::e($category['name']) ?></th>
+                            <th colspan="6" scope="rowgroup">
+                                <span><?= self::e($category['name']) ?></span>
+                            </th>
+                            <td class="structure-action-cell"><button type="button" class="structure-action-toggle" data-structure-menu-toggle="category" aria-label="Действия с разделом <?= self::e($category['name']) ?>" aria-haspopup="menu" aria-controls="draft-structure-action-menu" aria-expanded="false">⋯</button></td>
                         </tr>
                         <?php foreach ($category['services'] as $service):
                             $imported = (int) $service['imported_price_minor'];
@@ -177,48 +260,16 @@ final class DraftEditorPage
                                            data-row-percent
                                            aria-label="Изменение в процентах: <?= self::e($service['name']) ?>">
                                 </td>
+                                <td class="structure-action-cell">
+                                    <button type="button" class="structure-action-toggle" data-structure-menu-toggle="service" aria-label="Действия с услугой <?= self::e($service['name']) ?>" aria-haspopup="menu" aria-controls="draft-structure-action-menu" aria-expanded="false">⋯</button>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
                     <?php endforeach; ?>
-                        </table>
-                        <p class="draft-search-empty" data-service-search-empty role="status" hidden>Услуги не найдены</p>
-                    </div>
+                    </table>
+                    <p class="draft-search-empty" data-service-search-empty role="status" hidden>Услуги не найдены</p>
                 </div>
-            <aside class="draft-sidebar" aria-label="Сведения и действия с черновиком">
-                <section class="draft-sidebar-section">
-                    <h2 class="draft-sidebar-title">О прайсе <span class="<?= $isCurrentPublishedClone && $changedCount === 0 ? 'status-published-badge' : 'status-draft' ?>" data-draft-status><?= $isCurrentPublishedClone && $changedCount === 0 ? 'Опубликован' : 'Черновик' ?></span></h2>
-                </section>
-                <section class="draft-sidebar-section" aria-label="Сводка изменений" data-summary-section<?= $changedCount === 0 ? ' hidden' : '' ?>>
-                    <h2>Изменения</h2>
-                    <dl class="draft-sidebar-list draft-change-list">
-                        <div class="draft-stat draft-stat-changed" data-summary-changed-row<?= $changedCount === 0 ? ' hidden' : '' ?>><dt>Изменено</dt><span class="leader" aria-hidden="true"></span><dd data-summary-changed><?= $changedCount ?></dd></div>
-                        <div class="draft-stat draft-stat-increased" data-summary-increased-row<?= $increasedCount === 0 ? ' hidden' : '' ?>><dt>Повышено</dt><span class="leader" aria-hidden="true"></span><dd class="change-positive" data-summary-increased><?= $increasedCount ?></dd></div>
-                        <div class="draft-stat draft-stat-decreased" data-summary-decreased-row<?= $decreasedCount === 0 ? ' hidden' : '' ?>><dt>Снижено</dt><span class="leader" aria-hidden="true"></span><dd class="change-negative" data-summary-decreased><?= $decreasedCount ?></dd></div>
-                        <div class="draft-stat draft-stat-original"><dt>Исходная сумма</dt><span class="leader" aria-hidden="true"></span><dd data-summary-original><?= self::money($originalTotal) ?></dd></div>
-                        <div class="draft-stat draft-stat-current"><dt>Текущая сумма</dt><span class="leader" aria-hidden="true"></span><dd data-summary-current><?= self::money($currentTotal) ?></dd></div>
-                        <div class="draft-stat draft-stat-percent" data-summary-percent-row<?= $changedCount === 0 ? ' hidden' : '' ?>><dt>Общее изменение цен</dt><span class="leader" aria-hidden="true"></span><dd data-summary-percent>0%</dd></div>
-                        <span class="draft-stats-divider" aria-hidden="true"></span>
-                    </dl>
-                </section>
-                <div class="draft-status-line">
-                    <p class="draft-state" data-draft-state aria-live="polite">Нет несохранённых изменений.</p>
-                    <p class="draft-publication-state" data-publication-state<?= $isCurrentPublishedClone && $changedCount === 0 ? '' : ' hidden' ?>>Текущий прайс уже опубликован на сайте.</p>
-                </div>
-                <p class="draft-save-message" data-save-message role="status" aria-live="polite"></p>
-                <div class="draft-actions">
-                    <button type="button" class="button-secondary draft-reset-action" data-reset-prices hidden>Отменить изменения</button>
-                    <button type="button" class="button-secondary draft-download-action" data-download-xlsx>
-                        <i class="fa-solid fa-file-arrow-down draft-action-icon" aria-hidden="true"></i>
-                        <span>Скачать Excel</span>
-                    </button>
-                    <button type="button" class="button-secondary draft-save-action" data-save-prices disabled hidden>Сохранить изменения</button>
-                    <button type="button" data-publish-prices<?= $isCurrentPublishedClone && $changedCount === 0 ? ' hidden' : '' ?>>
-                        <i class="fa-solid fa-globe draft-action-icon" aria-hidden="true"></i>
-                        <span>Опубликовать прайс</span>
-                    </button>
-                </div>
-            </aside>
             </div>
         </div>
         <?php

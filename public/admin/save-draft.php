@@ -36,12 +36,17 @@ try {
         $request['version_id'],
         $request['expected_revision'],
         $request['prices'],
-        $adminSession->identity()
+        $adminSession->identity(),
+        $request['deleted_service_ids'],
+        $request['deleted_category_ids'],
+        $request['new_services'],
+        $request['new_categories']
     );
     draft_save_response(200, [
         'ok' => true,
         'revision' => $result['revision'],
         'changed' => $result['changed'],
+        'structural_changed' => $result['structural_changed'],
         'message' => 'Изменения сохранены.',
     ]);
 } catch (DraftSaveException $exception) {

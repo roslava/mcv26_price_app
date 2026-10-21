@@ -53,7 +53,8 @@ function admin_page_start(
     ?string $headerLinkHref = null,
     ?string $headerLinkLabel = null,
     bool $showPriceSearch = false,
-    bool $includeFontAwesome = false
+    bool $includeFontAwesome = false,
+    bool $showDesktopMenu = false
 ): void
 {
     ?>
@@ -68,8 +69,59 @@ function admin_page_start(
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
         <?php endif; ?>
     </head>
-    <body>
+    <body<?= $showDesktopMenu ? ' class="draft-editor-page"' : '' ?>>
+    <?php if ($showDesktopMenu): ?>
+        <div class="desktop-editor-bars">
+        <nav class="desktop-menu-bar" aria-label="Главное меню редактора">
+            <ul>
+                <li class="desktop-menu-item">
+                    <button type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="desktop-document-menu" data-menu-document>Документ</button>
+                    <ul id="desktop-document-menu" class="desktop-menu-popup" role="menu" aria-label="Документ" data-menu-document-popup hidden>
+                        <li role="none"><button type="button" role="menuitem" data-download-xlsx>Скачать Excel</button></li>
+                        <?php if ($headerLinkHref !== null && $headerLinkLabel !== null): ?>
+                            <li class="desktop-menu-separator" role="separator" aria-orientation="horizontal"></li>
+                            <li role="none"><a role="menuitem" href="<?= admin_e($headerLinkHref) ?>" data-editor-exit-link><?= admin_e($headerLinkLabel) ?></a></li>
+                        <?php endif; ?>
+                    </ul>
+                </li>
+                <li class="desktop-menu-item">
+                    <button type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="desktop-edit-menu" data-menu-edit>Редактировать</button>
+                    <ul id="desktop-edit-menu" class="desktop-menu-popup" role="menu" aria-label="Редактировать" data-menu-edit-popup hidden>
+                        <li role="none"><button type="button" role="menuitem" data-add-category>Добавить раздел</button></li>
+                        <li role="none"><button type="button" role="menuitem" aria-haspopup="dialog" data-menu-mass-price>Изменить все цены на %</button></li>
+                    </ul>
+                </li>
+                <li class="desktop-menu-item">
+                    <button type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="desktop-view-menu" data-menu-view>Вид</button>
+                    <ul id="desktop-view-menu" class="desktop-menu-popup" role="menu" data-menu-view-popup hidden>
+                        <li role="none"><button type="button" role="menuitemcheckbox" aria-checked="false" data-changed-filter disabled><span class="desktop-menu-check" aria-hidden="true">✓</span><span>Отображать только изменённые <span data-changed-filter-count>(0)</span></span></button></li>
+                        <li role="none"><button type="button" role="menuitem" data-reset-column-widths>Сбросить ширину колонок</button></li>
+                    </ul>
+                </li>
+                <li><button type="button" aria-haspopup="dialog" data-menu-price-info>Информация</button></li>
+            </ul>
+            <span class="desktop-menu-status" data-status-container>
+                <span class="status-draft" data-draft-status role="button" tabindex="0" aria-describedby="desktop-status-tooltip" aria-expanded="false" hidden></span>
+                <span class="desktop-status-tooltip" id="desktop-status-tooltip" data-status-tooltip role="tooltip" hidden>
+                    <span class="draft-state" data-draft-state>Нет несохранённых изменений.</span>
+                    <span class="draft-publication-state" data-publication-state hidden>Текущий прайс уже опубликован на сайте.</span>
+                </span>
+            </span>
+            <span class="desktop-status-live" data-status-live role="status" aria-live="polite"></span>
+        </nav>
+        <div class="desktop-secondary-bar">
+            <?php if ($showPriceSearch): ?>
+                <div class="site-header-search" role="search">
+                    <i class="fa-solid fa-magnifying-glass site-header-search-icon" aria-hidden="true"></i>
+                    <input type="search" placeholder="Поиск по услугам" aria-label="Поиск по услугам" autocomplete="off" data-service-search>
+                    <button type="button" aria-label="Очистить поиск" title="Очистить поиск" data-service-search-clear hidden>×</button>
+                </div>
+            <?php endif; ?>
+        </div>
+        </div>
+    <?php endif; ?>
     <main data-admin-base-path="<?= admin_e(AppUrl::adminBasePath()) ?>" class="admin-shell<?= $shellClass !== '' ? ' ' . admin_e($shellClass) : '' ?>">
+        <?php if (!$showDesktopMenu): ?>
         <header class="site-header">
             <div class="site-header-brand">
                 <picture class="site-logo-picture">
@@ -77,7 +129,7 @@ function admin_page_start(
                     <img class="site-logo" src="<?= admin_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
                 </picture>
             </div>
-            <?php if ($showPriceSearch): ?>
+            <?php if ($showPriceSearch && !$showDesktopMenu): ?>
                 <div class="site-header-search" role="search">
                     <i class="fa-solid fa-magnifying-glass site-header-search-icon" aria-hidden="true"></i>
                     <input type="search" placeholder="Поиск по услугам" aria-label="Поиск по услугам" autocomplete="off" data-service-search>
@@ -89,10 +141,11 @@ function admin_page_start(
                     <input type="hidden" name="csrf_token" value="<?= admin_e($logoutCsrfToken) ?>">
                     <button type="submit" class="button-secondary">Выйти</button>
                 </form>
-            <?php elseif ($headerLinkHref !== null && $headerLinkLabel !== null): ?>
+            <?php elseif ($headerLinkHref !== null && $headerLinkLabel !== null && !$showDesktopMenu): ?>
                 <a class="site-header-link" href="<?= admin_e($headerLinkHref) ?>"><?= admin_e($headerLinkLabel) ?></a>
             <?php endif; ?>
         </header>
+        <?php endif; ?>
     <?php
 }
 

@@ -73,7 +73,7 @@ final class DraftPriceSaverIntegrationTest extends TestCase
     {
         $result = $this->saver->save($this->versionId, 0, $this->prices([110000, 200000, 300000]), 'admin');
 
-        self::assertSame(['revision' => 1, 'changed' => 1], $result);
+        self::assertSame(['revision' => 1, 'changed' => 1, 'structural_changed' => 0], $result);
         self::assertSame([110000, 200000, 300000], $this->currentPrices());
         self::assertSame([100000, 200000, 300000], $this->importedPrices());
         $audit = $this->pdo->query('SELECT * FROM price_changes')->fetch();
@@ -111,7 +111,7 @@ final class DraftPriceSaverIntegrationTest extends TestCase
     public function testUnchangedCompleteStateIncrementsOnceWithoutAudit(): void
     {
         $result = $this->saver->save($this->versionId, 0, $this->prices([100000, 200000, 300000]), 'admin');
-        self::assertSame(['revision' => 1, 'changed' => 0], $result);
+        self::assertSame(['revision' => 1, 'changed' => 0, 'structural_changed' => 0], $result);
         self::assertSame(0, $this->auditCount());
     }
 

@@ -9,7 +9,13 @@ use Mcv26\Price\Exception\DraftSaveException;
 
 final class DraftSaveRequest
 {
-    /** @return array{version_id: int, expected_revision: int, prices: list<array<string, mixed>>} */
+    /**
+     * @return array{
+     *   version_id: int, expected_revision: int, prices: list<array<string, mixed>>,
+     *   deleted_service_ids: list<mixed>, deleted_category_ids: list<mixed>,
+     *   new_services: list<mixed>, new_categories: list<mixed>
+     * }
+     */
     public static function parse(
         string $method,
         string $contentType,
@@ -33,6 +39,10 @@ final class DraftSaveRequest
         if (!is_array($data)
             || !is_array($data['prices'] ?? null)
             || !array_is_list($data['prices'])
+            || !self::optionalList($data, 'deleted_service_ids')
+            || !self::optionalList($data, 'deleted_category_ids')
+            || !self::optionalList($data, 'new_services')
+            || !self::optionalList($data, 'new_categories')
         ) {
             throw new DraftSaveException('invalid_request', 422, 'Некорректная структура запроса.');
         }
@@ -40,7 +50,16 @@ final class DraftSaveRequest
             'version_id' => self::integer($data['version_id'] ?? null, false),
             'expected_revision' => self::integer($data['expected_revision'] ?? null, true),
             'prices' => $data['prices'],
+            'deleted_service_ids' => $data['deleted_service_ids'] ?? [],
+            'deleted_category_ids' => $data['deleted_category_ids'] ?? [],
+            'new_services' => $data['new_services'] ?? [],
+            'new_categories' => $data['new_categories'] ?? [],
         ];
+    }
+
+    private static function optionalList(array $data, string $key): bool
+    {
+        return !array_key_exists($key, $data) || (is_array($data[$key]) && array_is_list($data[$key]));
     }
 
     private static function integer(mixed $value, bool $allowZero): int
