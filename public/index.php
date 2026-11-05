@@ -25,6 +25,18 @@ function public_e(mixed $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function public_section_title(string $value): string
+{
+    $title = mb_strtolower(trim($value), 'UTF-8');
+    $title = mb_strtoupper(mb_substr($title, 0, 1, 'UTF-8'), 'UTF-8')
+        . mb_substr($title, 1, null, 'UTF-8');
+    return preg_replace_callback(
+        '/(?<![\p{L}\p{N}])(?:тмс|мис|уфф|фдт|узи|зпрр)(?![\p{L}\p{N}])/ui',
+        static fn (array $match): string => mb_strtoupper($match[0], 'UTF-8'),
+        $title
+    ) ?? $title;
+}
+
 function public_price(mixed $value): string
 {
     $price = trim((string) $value);
@@ -37,7 +49,7 @@ function public_price(mixed $value): string
     if ($fraction !== '') {
         $formatted .= ',' . $fraction;
     }
-    return $formatted . "\u{00A0}₽";
+    return $formatted;
 }
 
 function public_price_date(mixed $value): ?string
@@ -99,18 +111,13 @@ foreach ($sections as $section) {
     <meta name="robots" content="index,follow">
     <title>Прайс-лист — MCV26</title>
     <link rel="stylesheet" href="<?= public_e(AppUrl::assetPath('price.css')) ?>">
+    <link rel="stylesheet" href="<?= public_e(AppUrl::assetPath('site-header.css')) ?>">
+    <script src="<?= public_e(AppUrl::assetPath('site-header.js')) ?>" defer></script>
     <script src="<?= public_e(AppUrl::assetPath('price.js')) ?>" defer></script>
 </head>
 <body>
+<?php require dirname(__DIR__) . '/src/View/site-header.php'; ?>
 <div class="public-hero-area">
-<header class="public-header">
-    <div class="container header-inner">
-        <a class="brand" href="https://mcv26.ru/">
-            <img class="public-logo" src="<?= public_e(AppUrl::assetPath('mcv26_logo_h.png')) ?>" alt="Медицинский Центр Власова">
-        </a>
-    </div>
-</header>
-
     <section class="hero">
         <div class="container">
             <h1>Услуги и цены</h1>
@@ -141,8 +148,8 @@ foreach ($sections as $section) {
             <div class="price-main">
                 <section class="search-panel" aria-labelledby="search-heading">
                     <h2 id="search-heading" class="visually-hidden">Поиск по прайс-листу</h2>
-                    <label for="price-search">Найти услугу</label>
-                    <input id="price-search" type="search" placeholder="Название услуги или код" autocomplete="off">
+                    <label for="price-search" class="visually-hidden">Найти услугу</label>
+                    <input id="price-search" type="search" placeholder="Найти услугу" autocomplete="off">
                     <p id="search-status" class="search-status" aria-live="polite">Показано услуг: <?= public_e($serviceCount) ?></p>
                     <a class="back-to-tools" href="#" aria-label="В начало страницы">В начало</a>
                     <p id="no-results" class="no-results" hidden>Ничего не найдено</p>
@@ -155,18 +162,18 @@ foreach ($sections as $section) {
                     class="price-section"
                     data-price-section="<?= $index + 1 ?>"
                 >
-                    <h2><?= public_e($section['name']) ?></h2>
+                    <h2><?= public_e(public_section_title($section['name'])) ?></h2>
                     <div class="service-columns" aria-hidden="true">
                         <span>Код</span>
                         <span>Наименование услуги</span>
-                        <span>Цена</span>
+                        <span>Цена ₽</span>
                     </div>
                     <ul class="service-list">
                         <?php foreach ($section['items'] as $item): ?>
                             <li class="service-row" data-service>
                                 <span class="service-code"><?= public_e($item['code']) ?></span>
                                 <span class="service-name"><?= public_e($item['name']) ?></span>
-                                <span class="service-price"><?= public_e(public_price($item['price'])) ?></span>
+                                <span class="service-price"><?= public_e(public_price($item['price'])) ?><span class="visually-hidden"> ₽</span></span>
                             </li>
                         <?php endforeach; ?>
                     </ul>

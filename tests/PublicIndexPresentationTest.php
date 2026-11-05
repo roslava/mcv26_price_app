@@ -10,11 +10,11 @@ final class PublicIndexPresentationTest extends TestCase
 {
     public function testPublicHeaderUsesLocalClientLogo(): void
     {
-        $source = (string) file_get_contents(dirname(__DIR__) . '/public/index.php');
+        $source = (string) file_get_contents(dirname(__DIR__) . '/src/View/site-header.php');
 
         self::assertStringContainsString('href="https://mcv26.ru/"', $source);
-        self::assertStringContainsString("AppUrl::assetPath('mcv26_logo_h.png')", $source);
-        self::assertStringContainsString('alt="Медицинский Центр Власова"', $source);
+        self::assertStringContainsString("AppUrl::assetPath('mcv26_logo_new.svg')", $source);
+        self::assertStringContainsString('alt="Медицинский центр Власова"', $source);
         self::assertStringNotContainsString('class="brand-mark"', $source);
         self::assertStringNotContainsString('src="https://storage.yandexcloud.net', $source);
     }
@@ -51,7 +51,9 @@ final class PublicIndexPresentationTest extends TestCase
 
         self::assertStringContainsString('if ($priceData === null)', $source);
         self::assertStringContainsString('Прайс-лист пока не опубликован.', $source);
-        self::assertStringContainsString('<header class="public-header">', $source);
+        self::assertStringContainsString("require dirname(__DIR__) . '/src/View/site-header.php'", $source);
+        $header = (string) file_get_contents(dirname(__DIR__) . '/src/View/site-header.php');
+        self::assertStringContainsString('<header class="mcv-header">', $header);
         self::assertStringContainsString('<footer class="public-footer">', $source);
     }
 
@@ -88,7 +90,7 @@ final class PublicIndexPresentationTest extends TestCase
     {
         $styles = (string) file_get_contents(dirname(__DIR__) . '/public/assets/price.css');
 
-        self::assertStringContainsString('"label input status back"', $styles);
+        self::assertStringContainsString('"input status back"', $styles);
         self::assertStringContainsString('.back-to-tools {', $styles);
         self::assertStringContainsString('grid-area: back;', $styles);
     }
@@ -105,13 +107,13 @@ final class PublicIndexPresentationTest extends TestCase
         self::assertStringContainsString("window.addEventListener('pageshow', () => {", $script);
     }
 
-    public function testPublicPriceSectionHeadingsUseFullWidthNavyUppercaseStyle(): void
+    public function testPublicPriceSectionHeadingsUseCompactReadableStyle(): void
     {
         $styles = (string) file_get_contents(dirname(__DIR__) . '/public/assets/price.css');
 
         self::assertStringContainsString('.price-section > h2 {', $styles);
-        self::assertStringContainsString('background: #004E89;', $styles);
-        self::assertStringContainsString('color: #FFFFFF;', $styles);
+        self::assertStringContainsString('color: var(--brand-navy);', $styles);
+        self::assertStringContainsString('font-size: 16px;', $styles);
         self::assertStringContainsString('text-transform: uppercase;', $styles);
         self::assertStringContainsString('overflow-wrap: anywhere;', $styles);
     }

@@ -160,3 +160,32 @@
     }
 
 })();
+
+// A shadow is only needed when the search panel is pinned.
+(() => {
+    const panel = document.querySelector('.search-panel');
+    if (!panel) return;
+    const marker = document.createElement('div');
+    marker.setAttribute('aria-hidden', 'true');
+    panel.before(marker);
+    let frame = 0;
+    const update = () => {
+        frame = 0;
+        const style = getComputedStyle(panel);
+        const top = parseFloat(style.top) || 0;
+        const stuck = style.position === 'sticky'
+            && marker.getBoundingClientRect().top < top
+            && Math.abs(panel.getBoundingClientRect().top - top) < 1;
+        panel.classList.toggle('is-stuck', stuck);
+        document.body.classList.toggle('search-is-stuck', stuck);
+    };
+    const schedule = () => {
+        if (!frame) frame = requestAnimationFrame(update);
+    };
+    addEventListener('scroll', schedule, { passive: true });
+    addEventListener('resize', schedule);
+    addEventListener('pageshow', schedule);
+    addEventListener('load', schedule);
+    new ResizeObserver(schedule).observe(panel);
+    update();
+})();
