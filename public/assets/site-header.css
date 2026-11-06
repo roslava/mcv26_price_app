@@ -55,7 +55,7 @@ body.mcv-modal-open{overflow:hidden}
 @media(min-width:1025px){.search-panel{top:80px}.section-nav{top:92px}.section-nav{max-height:calc(100dvh - 104px)}.price-section{scroll-margin-top:172px}}
 @media(min-width:1025px) and (max-width:1199px){.mcv-header-inner{gap:16px}.mcv-logo{flex-basis:200px}.mcv-address{font-size:12px}.mcv-address a{font-size:18px}.mcv-consult{font-size:14px;padding:14px 22px}}
 @media(max-width:1024px){.mcv-nav{display:none}.mcv-burger{display:flex}.mcv-header-inner{min-height:80px;padding:15px 70px 15px 0;gap:20px}.mcv-logo{flex-basis:200px}.mcv-header .mcv-consult{display:none}.mcv-address{font-size:11px}.mcv-address a{font-size:16px;letter-spacing:1px}.hero{padding-top:24px}}
-@media(max-width:767px){.mcv-header{background:#ff6b35}.mcv-header-inner{width:calc(100% - 32px);min-height:80px}.mcv-address{display:none}.mcv-burger{width:46px;height:46px;padding:11px}.hero h1{font-size:12px;padding-bottom:12px}.hero .container{width:calc(100% - 32px)}}
+@media(max-width:767px){.mcv-header{background:#004e87}.mcv-header-inner{width:calc(100% - 32px);min-height:80px}.mcv-address{display:none}.mcv-burger{width:46px;height:46px;padding:11px}.hero h1{font-size:12px;padding-bottom:12px}.hero .container{width:calc(100% - 32px)}}
 @media(prefers-reduced-motion:reduce){.mcv-consult::before{animation:none}.mcv-drawer[open]{animation:none}.mcv-nav,.mcv-submenu{transition:none}}
 @media(prefers-reduced-transparency:reduce){.mcv-nav.is-stuck{background:#fff;backdrop-filter:none}}
 
