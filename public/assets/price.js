@@ -189,3 +189,87 @@
     new ResizeObserver(schedule).observe(panel);
     update();
 })();
+
+// Collapse mobile section tags after two measured rows.
+(() => {
+    const nav = document.querySelector('.section-nav');
+    const list = nav?.querySelector('ul');
+    if (!list) return;
+    list.id = 'price-section-tags';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'section-nav-toggle';
+    button.setAttribute('aria-controls', list.id);
+    button.hidden = true;
+    list.after(button);
+    let expanded = false;
+    let frame = 0;
+    const update = () => {
+        frame = 0;
+        const mobile = matchMedia('(max-width: 767px)').matches;
+        const items = Array.from(list.children);
+        const visible = items.filter(item => !item.hidden);
+        const top = list.getBoundingClientRect().top;
+        const rows = [];
+        visible.forEach(item => {
+            const y = Math.round(item.getBoundingClientRect().top - top);
+            if (!rows.some(row => Math.abs(row - y) < 2)) rows.push(y);
+        });
+        rows.sort((a, b) => a - b);
+        const collapsible = mobile && rows.length > 2;
+        const collapsed = collapsible && !expanded;
+        let bottom = 0;
+        items.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const outside = collapsed && Math.round(rect.top - top) > rows[1] + 1;
+            item.inert = outside;
+            if (outside) item.setAttribute('aria-hidden', 'true');
+            else item.removeAttribute('aria-hidden');
+            if (!item.hidden && !outside) bottom = Math.max(bottom, rect.bottom - top);
+        });
+        list.style.maxHeight = collapsed ? Math.ceil(bottom) + 'px' : '';
+        list.classList.toggle('is-collapsed', collapsed);
+        button.hidden = !collapsible;
+        button.textContent = expanded ? 'Свернуть разделы' : 'Показать все разделы';
+        button.setAttribute('aria-expanded', String(!collapsed));
+    };
+    const schedule = () => {
+        if (!frame) frame = requestAnimationFrame(update);
+    };
+    button.addEventListener('click', () => { expanded = !expanded; update(); });
+    addEventListener('resize', schedule);
+    addEventListener('load', schedule);
+    document.fonts?.ready.then(schedule);
+    new ResizeObserver(schedule).observe(nav);
+    new MutationObserver(schedule).observe(list, {
+        subtree: true, attributes: true, attributeFilter: ['hidden']
+    });
+    update();
+})();
+
+(() => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mobile-back-to-top';
+    button.textContent = '↑ Вернуться в начало';
+    button.hidden = true;
+    document.body.append(button);
+    let scheduled = false;
+    const update = () => {
+        scheduled = false;
+        button.hidden = !matchMedia('(max-width: 767px)').matches || scrollY < 500;
+    };
+    const schedule = () => {
+        if (!scheduled) { scheduled = true; requestAnimationFrame(update); }
+    };
+    button.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+        });
+    });
+    addEventListener('scroll', schedule, { passive: true });
+    addEventListener('resize', schedule);
+    addEventListener('pageshow', schedule);
+    update();
+})();
